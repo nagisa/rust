@@ -31,8 +31,8 @@ pub use core::num::{from_int, from_i8, from_i16, from_i32, from_i64};
 pub use core::num::{from_uint, from_u8, from_u16, from_u32, from_u64};
 pub use core::num::{from_f32, from_f64};
 pub use core::num::{FromStrRadix, from_str_radix};
-pub use core::num::{FPCategory, FPNaN, FPInfinite, FPZero, FPSubnormal};
-pub use core::num::{FPNormal, Float};
+pub use core::num::{FpCategory, FpNan, FpInfinite, FpZero, FpSubnormal};
+pub use core::num::{FpNormal, Float};
 
 #[experimental = "may be removed or relocated"]
 pub mod strconv;

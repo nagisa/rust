@@ -619,14 +619,14 @@ mod tests {
         let neg_inf: f32 = Float::neg_infinity();
         let zero: f32 = Float::zero();
         let neg_zero: f32 = Float::neg_zero();
-        assert_eq!(nan.classify(), FPNaN);
-        assert_eq!(inf.classify(), FPInfinite);
-        assert_eq!(neg_inf.classify(), FPInfinite);
-        assert_eq!(zero.classify(), FPZero);
-        assert_eq!(neg_zero.classify(), FPZero);
-        assert_eq!(1f32.classify(), FPNormal);
-        assert_eq!(1e-37f32.classify(), FPNormal);
-        assert_eq!(1e-38f32.classify(), FPSubnormal);
+        assert_eq!(nan.classify(), FpNan);
+        assert_eq!(inf.classify(), FpInfinite);
+        assert_eq!(neg_inf.classify(), FpInfinite);
+        assert_eq!(zero.classify(), FpZero);
+        assert_eq!(neg_zero.classify(), FpZero);
+        assert_eq!(1f32.classify(), FpNormal);
+        assert_eq!(1e-37f32.classify(), FpNormal);
+        assert_eq!(1e-38f32.classify(), FpSubnormal);
     }
 
     #[test]

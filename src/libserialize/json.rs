@@ -201,7 +201,7 @@ use std;
 use std::collections::{HashMap, TreeMap};
 use std::{char, f64, fmt, io, num, str};
 use std::mem::{swap, transmute};
-use std::num::{Float, FPNaN, FPInfinite, Int};
+use std::num::{Float, FpNan, FpInfinite, Int};
 use std::str::{FromStr, ScalarValue};
 use std::string;
 use std::vec::Vec;
@@ -389,7 +389,7 @@ fn spaces(wr: &mut io::Writer, mut n: uint) -> Result<(), io::IoError> {
 
 fn fmt_number_or_null(v: f64) -> string::String {
     match v.classify() {
-        FPNaN | FPInfinite => string::String::from_str("null"),
+        FpNan | FpInfinite => string::String::from_str("null"),
         _ if v.fract() != 0f64 => f64::to_str_digits(v, 6u),
         _ => f64::to_str_digits(v, 6u) + ".0",
     }
@@ -2329,7 +2329,7 @@ impl ToJson for f32 {
 impl ToJson for f64 {
     fn to_json(&self) -> Json {
         match self.classify() {
-            FPNaN | FPInfinite => Json::Null,
+            FpNan | FpInfinite => Json::Null,
             _                  => Json::F64(*self)
         }
     }
