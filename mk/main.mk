@@ -157,8 +157,9 @@ endif
 # that the snapshot will be generated with a statically linked rustc so we only
 # have to worry about the distribution of one file (with its native dynamic
 # dependencies)
-RUSTFLAGS_STAGE0 += -C prefer-dynamic
-RUSTFLAGS_STAGE1 += -C prefer-dynamic
+RUSTFLAGS_STAGE0 += -C prefer-dynamic --cfg allow_unstable
+RUSTFLAGS_STAGE1 += -C prefer-dynamic --cfg allow_unstable
+RUSTFLAGS_STAGE2 += --cfg allow_unstable
 RUST_LIB_FLAGS_ST2 += -C prefer-dynamic
 RUST_LIB_FLAGS_ST3 += -C prefer-dynamic
 
@@ -331,9 +332,6 @@ CFG_INFO := $(info cfg: disabling unstable features (CFG_DISABLE_UNSTABLE_FEATUR
 # Turn on feature-staging
 export CFG_DISABLE_UNSTABLE_FEATURES
 endif
-# Subvert unstable feature lints to do the self-build
-export CFG_BOOTSTRAP_KEY
-export RUSTC_BOOTSTRAP_KEY:=$(CFG_BOOTSTRAP_KEY)
 
 ######################################################################
 # Per-stage targets and runner

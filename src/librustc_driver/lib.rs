@@ -67,6 +67,7 @@ use std::io;
 use std::iter::repeat;
 use std::os;
 use std::sync::mpsc::channel;
+use std::sync::atomic;
 use std::thread;
 
 use rustc::session::early_error;
@@ -86,6 +87,8 @@ pub fn run(args: Vec<String>) -> int {
     monitor(move |:| run_compiler(args.as_slice()));
     0
 }
+
+pub static ALLOW_UNSTABLE: atomic::AtomicBool = atomic::ATOMIC_BOOL_INIT;
 
 static BUG_REPORT_URL: &'static str =
     "http://doc.rust-lang.org/complement-bugreport.html";
@@ -235,15 +238,10 @@ fn build_controller<'a>(sess: &Session) -> CompileController<'a> {
 pub fn get_unstable_features_setting() -> UnstableFeatures {
     // Whether this is a feature-staged build, i.e. on the beta or stable channel
     let disable_unstable_features = option_env!("CFG_DISABLE_UNSTABLE_FEATURES").is_some();
-    // The secret key needed to get through the rustc build itself by
-    // subverting the unstable features lints
-    let bootstrap_secret_key = option_env!("CFG_BOOTSTRAP_KEY");
-    // The matching key to the above, only known by the build system
-    let bootstrap_provided_key = os::getenv("RUSTC_BOOTSTRAP_KEY");
-    match (disable_unstable_features, bootstrap_secret_key, bootstrap_provided_key) {
-        (_, Some(ref s), Some(ref p)) if s == p => UnstableFeatures::Cheat,
-        (true, _, _) => UnstableFeatures::Disallow,
-        (false, _, _) => UnstableFeatures::Default
+    match (disable_unstable_features, ALLOW_UNSTABLE.load(atomic::Ordering::Relaxed)) {
+        (_, true) => UnstableFeatures::Cheat,
+        (true, _) => UnstableFeatures::Disallow,
+        (false, _) => UnstableFeatures::Default
     }
 }
 

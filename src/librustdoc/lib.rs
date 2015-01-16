@@ -47,6 +47,8 @@ use rustc::session::search_paths::SearchPaths;
 
 // reexported from `clean` so it can be easily updated with the mod itself
 pub use clean::SCHEMA_VERSION;
+// reexported since driver/driver.rs needs it
+pub use rustc_driver::ALLOW_UNSTABLE;
 
 #[macro_use]
 pub mod externalfiles;

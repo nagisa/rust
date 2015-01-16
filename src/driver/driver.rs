@@ -14,4 +14,9 @@ extern crate "rustdoc" as this;
 #[cfg(rustc)]
 extern crate "rustc_driver" as this;
 
-fn main() { this::main() }
+use std::sync::atomic::Ordering;
+
+fn main() {
+    this::ALLOW_UNSTABLE.store(cfg!(allow_unstable), Ordering::Relaxed);
+    this::main()
+}
