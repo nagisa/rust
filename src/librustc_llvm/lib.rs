@@ -159,7 +159,7 @@ bitflags! {
 #[derive(Copy)]
 pub enum OtherAttribute {
     // The following are not really exposed in
-    // the LLVM c api so instead to add these
+    // the LLVM C api so instead to add these
     // we call a wrapper function in RustWrapper
     // that uses the C++ api.
     SanitizeAddressAttribute = 1 << 32,
@@ -960,6 +960,7 @@ extern {
     pub fn LLVMAddFunctionAttrString(Fn: ValueRef, index: c_uint, Name: *const c_char);
     pub fn LLVMRemoveFunctionAttrString(Fn: ValueRef, index: c_uint, Name: *const c_char);
     pub fn LLVMGetFunctionAttr(Fn: ValueRef) -> c_ulonglong;
+    pub fn LLVMRemoveFunctionAttr(Fn: ValueRef, val: c_ulonglong);
 
     /* Operations on parameters */
     pub fn LLVMCountParams(Fn: ValueRef) -> c_uint;

@@ -12,6 +12,7 @@ use back::link::mangle_internal_name_by_path_and_seq;
 use llvm::ValueRef;
 use middle::mem_categorization::Typer;
 use trans::adt;
+use trans::attributes;
 use trans::base::*;
 use trans::build::*;
 use trans::cleanup::{CleanupMethods, ScopeId};
@@ -161,7 +162,7 @@ pub fn get_or_create_declaration_if_closure<'a, 'tcx>(ccx: &CrateContext<'a, 'tc
     let llfn = decl_internal_rust_fn(ccx, function_type, &symbol[..]);
 
     // set an inline hint for all closures
-    set_inline_hint(llfn);
+    attributes::inline(llfn, attributes::InlineHint);
 
     debug!("get_or_create_declaration_if_closure(): inserting new \
             closure {:?} (type {})",
