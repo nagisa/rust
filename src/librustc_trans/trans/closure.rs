@@ -20,6 +20,7 @@ use trans::common::*;
 use trans::datum::{Datum, rvalue_scratch_datum};
 use trans::datum::{Rvalue, ByValue};
 use trans::debuginfo;
+use trans::declare;
 use trans::expr;
 use trans::monomorphize::{self, MonoId};
 use trans::type_of::*;
@@ -159,7 +160,11 @@ pub fn get_or_create_declaration_if_closure<'a, 'tcx>(ccx: &CrateContext<'a, 'tc
         mangle_internal_name_by_path_and_seq(path, "closure")
     });
 
-    let llfn = decl_internal_rust_fn(ccx, function_type, &symbol[..]);
+    // Currently there’s only a single user of get_or_create_declaration_if_closure and it
+    // unconditionally defines the function, therefore we use define_* here.
+    let llfn = declare::define_internal_rust_fn(ccx, &symbol[..], function_type).unwrap_or_else(||{
+        ccx.sess().bug(&format!("symbol `{}` already defined", symbol));
+    });
 
     // set an inline hint for all closures
     attributes::inline(llfn, attributes::InlineAttr::Hint);

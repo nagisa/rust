@@ -32,6 +32,7 @@ use trans::common::*;
 use trans::consts;
 use trans::datum;
 use trans::debuginfo::DebugLoc;
+use trans::declare;
 use trans::expr;
 use trans::foreign;
 use trans::inline;
@@ -45,7 +46,6 @@ use util::ppaux::{ty_to_short_str, Repr};
 
 use arena::TypedArena;
 use libc::c_uint;
-use std::ffi::CString;
 use syntax::ast;
 use syntax::parse::token;
 
@@ -184,7 +184,7 @@ pub fn get_drop_glue<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>, t: Ty<'tcx>) -> Val
 
     let (glue, new_sym) = match ccx.available_drop_glues().borrow().get(&t) {
         Some(old_sym) => {
-            let glue = decl_cdecl_fn(ccx, &old_sym[..], llfnty, ty::mk_nil(ccx.tcx()));
+            let glue = declare::declare_cfn(ccx, &old_sym[..], llfnty, ty::mk_nil(ccx.tcx()));
             (glue, None)
         },
         None => {
@@ -258,12 +258,8 @@ pub fn get_res_dtor<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>,
                                      did,
                                      &[get_drop_glue_type(ccx, t)],
                                      ty::mk_nil(ccx.tcx()));
-        foreign::get_extern_fn(ccx,
-                      &mut *ccx.externs().borrow_mut(),
-                      &name[..],
-                      llvm::CCallConv,
-                      llty,
-                      dtor_ty)
+        foreign::get_extern_fn(ccx, &mut *ccx.externs().borrow_mut(), &name[..], llvm::CCallConv,
+                               llty, dtor_ty)
     }
 }
 
@@ -564,12 +560,10 @@ pub fn declare_tydesc<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>, t: Ty<'tcx>)
     let llalign = llalign_of(ccx, llty);
     let name = mangle_internal_name_by_type_and_seq(ccx, t, "tydesc");
     debug!("+++ declare_tydesc {} {}", ppaux::ty_to_string(ccx.tcx(), t), name);
-    let buf = CString::new(name.clone()).unwrap();
-    let gvar = unsafe {
-        llvm::LLVMAddGlobal(ccx.llmod(), ccx.tydesc_type().to_ref(),
-                            buf.as_ptr())
-    };
-    note_unique_llvm_symbol(ccx, name);
+
+    let gvar = declare::define_global(ccx, &name[..], ccx.tydesc_type()).unwrap_or_else(||{
+        ccx.sess().bug(&format!("symbol `{}` is already defined", name));
+    });
 
     let ty_name = token::intern_and_get_ident(
         &ppaux::ty_to_string(ccx.tcx(), t));
@@ -588,12 +582,11 @@ pub fn declare_tydesc<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>, t: Ty<'tcx>)
 fn declare_generic_glue<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>, t: Ty<'tcx>,
                                   llfnty: Type, name: &str) -> (String, ValueRef) {
     let _icx = push_ctxt("declare_generic_glue");
-    let fn_nm = mangle_internal_name_by_type_and_seq(
-        ccx,
-        t,
-        &format!("glue_{}", name));
-    let llfn = decl_cdecl_fn(ccx, &fn_nm[..], llfnty, ty::mk_nil(ccx.tcx()));
-    note_unique_llvm_symbol(ccx, fn_nm.clone());
+    let fn_nm = mangle_internal_name_by_type_and_seq(ccx, t, &format!("glue_{}", name));
+    let llfn = declare::define_cfn(ccx, &fn_nm[..], llfnty,
+                                   ty::mk_nil(ccx.tcx())).unwrap_or_else(||{
+        ccx.sess().bug(&format!("symbol `{}` already defined", fn_nm));
+    });
     return (fn_nm, llfn);
 }
 
