@@ -241,6 +241,22 @@ extern "rust-intrinsic" {
     /// will trigger a compiler error.
     pub fn return_address() -> *const u8;
 
+    /// Attempts to return the address of the target-specific frame pointer value of the specified
+    /// frame.
+    ///
+    /// The argument to this intrinsic indicates which function to return the frame pointer for.
+    /// Zero indicates the calling function, one indicates its caller, etc. The argument is
+    /// required to be a constant integer value.
+    ///
+    /// The intrinsic either returns a pointer indicating the frame address of the specified call
+    /// frame, or zero if it cannot be identified.
+    ///
+    /// Note that calling this intrinsic does not prevent function inlining or other aggressive
+    /// transformations, so the value returned may not be that of the obvious source-language
+    /// caller.
+    #[cfg(not(stage0))]
+    pub fn frame_address(val: u32) -> *const u8;
+
     /// Returns `true` if the actual type given as `T` requires drop
     /// glue; returns `false` if the actual type provided for `T`
     /// implements `Copy`.
