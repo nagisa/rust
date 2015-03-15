@@ -8,7 +8,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(dead_code)]
+#![allow(dead_code, deprecated)]
 
 use core::prelude::*;
 
@@ -26,6 +26,7 @@ use ffi::CString;
 use sys_common::stack::RED_ZONE;
 use sys_common::thread::*;
 
+
 pub type rust_thread = libc::pthread_t;
 pub type rust_thread_return = *mut u8;
 pub type StartFn = extern "C" fn(*mut libc::c_void) -> rust_thread_return;
@@ -34,6 +35,7 @@ pub type StartFn = extern "C" fn(*mut libc::c_void) -> rust_thread_return;
 pub extern fn thread_start(main: *mut libc::c_void) -> rust_thread_return {
     return start_thread(main);
 }
+
 
 #[cfg(all(not(target_os = "linux"),
           not(target_os = "macos"),
@@ -103,10 +105,7 @@ pub mod guard {
     }
 
     pub unsafe fn init() {
-        let psize = libc::sysconf(libc::consts::os::sysconf::_SC_PAGESIZE);
-        if psize == -1 {
-            panic!("failed to get page size");
-        }
+        let psize = ::os::page_size();
 
         PAGE_SIZE = psize as uint;
 

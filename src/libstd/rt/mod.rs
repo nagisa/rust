@@ -27,7 +27,6 @@ use marker::Send;
 use ops::FnOnce;
 use sys;
 use thunk::Thunk;
-use usize;
 
 // Reexport some of our utilities which are expected by other crates.
 pub use self::util::{default_sched_threads, min_stack, running_on_valgrind};
@@ -72,43 +71,23 @@ fn lang_start(main: *const u8, argc: int, argv: *const *const u8) -> int {
     use sys_common;
     use thread::Thread;
 
-    let something_around_the_top_of_the_stack = 1;
-    let addr = &something_around_the_top_of_the_stack as *const int;
-    let my_stack_top = addr as uint;
-
-    // FIXME #11359 we just assume that this thread has a stack of a
-    // certain size, and estimate that there's at most 20KB of stack
-    // frames above our current position.
-    const TWENTY_KB: uint = 20000;
-
-    // saturating-add to sidestep overflow
-    let top_plus_spill = if usize::MAX - TWENTY_KB < my_stack_top {
-        usize::MAX
-    } else {
-        my_stack_top + TWENTY_KB
-    };
-    // saturating-sub to sidestep underflow
-    let my_stack_bottom = if top_plus_spill < OS_DEFAULT_STACK_ESTIMATE {
-        0
-    } else {
-        top_plus_spill - OS_DEFAULT_STACK_ESTIMATE
-    };
 
     let failed = unsafe {
         // First, make sure we don't trigger any __morestack overflow checks,
         // and next set up our stack to have a guard page and run through our
         // own fault handlers if we hit it.
-        sys_common::stack::record_os_managed_stack_bounds(my_stack_bottom,
-                                                          my_stack_top);
-        sys::thread::guard::init();
-        sys::stack_overflow::init();
+        let (stack_bot, stack_top) = sys_common::thread::guess_thread_stack_bounds(true);
+        // Since this guesses the stack bounds, we move it towards top a bit, just to be sure.
+        // TODO
+        sys_common::stack::record_os_managed_stack_bounds(stack_bot as usize, stack_top as usize);
+        // sys::stack_overflow::init();
 
         // Next, set up the current Thread with the guard information we just
         // created. Note that this isn't necessary in general for new threads,
         // but we just do this to name the main thread and to give it correct
         // info about the stack bounds.
         let thread: Thread = NewThread::new(Some("<main>".to_string()));
-        thread_info::set(sys::thread::guard::main(), thread);
+        thread_info::set(0, thread);
 
         // By default, some platforms will send a *signal* when a EPIPE error
         // would otherwise be delivered. This runtime doesn't install a SIGPIPE

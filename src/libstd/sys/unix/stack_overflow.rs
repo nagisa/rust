@@ -8,6 +8,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![allow(dead_code,deprecated)]
 use libc;
 use core::prelude::*;
 use self::imp::{make_handler, drop_handler};

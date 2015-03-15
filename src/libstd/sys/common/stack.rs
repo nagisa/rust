@@ -11,13 +11,12 @@
 //! Rust stack-limit management
 //!
 //! Currently Rust uses a segmented-stack-like scheme in order to detect stack
-//! overflow for rust tasks. In this scheme, the prologue of all functions are
-//! preceded with a check to see whether the current stack limits are being
-//! exceeded.
+//! overflow for rust threads. In this scheme, the prologue of all functions
+//! contain a check to see whether the current stack limits are being exceeded.
 //!
 //! This module provides the functionality necessary in order to manage these
 //! stack limits (which are stored in platform-specific locations). The
-//! functions here are used at the borders of the task lifetime in order to
+//! functions here are used at the borders of the thread lifetime in order to
 //! manage these limits.
 //!
 //! This function is an unstable module because this scheme for stack overflow
@@ -46,7 +45,7 @@
 // corresponding prolog, decision was taken to disable segmented
 // stack support on iOS.
 
-pub const RED_ZONE: uint = 20 * 1024;
+pub const RED_ZONE: usize = 20 * 1024; // 20KiB
 
 /// This function is invoked from rust's current __morestack function. Segmented
 /// stacks are currently not enabled as segmented stacks, but rather one giant
@@ -101,27 +100,17 @@ extern fn stack_exhausted() {
         //  #2361 - possible implementation of not using landing pads
 
         ::rt::util::report_overflow();
-
         intrinsics::abort();
     }
 }
 
-// Windows maintains a record of upper and lower stack bounds in the Thread Information
-// Block (TIB), and some syscalls do check that addresses which are supposed to be in
-// the stack, indeed lie between these two values.
-// (See https://github.com/rust-lang/rust/issues/3445#issuecomment-26114839)
-//
-// When using Rust-managed stacks (libgreen), we must maintain these values accordingly.
-// For OS-managed stacks (libnative), we let the OS manage them for us.
-//
 // On all other platforms both variants behave identically.
-
 #[inline(always)]
-pub unsafe fn record_os_managed_stack_bounds(stack_lo: uint, _stack_hi: uint) {
+pub unsafe fn record_os_managed_stack_bounds(stack_lo: usize, _stack_hi: usize) {
     record_sp_limit(stack_lo + RED_ZONE);
 }
 
-/// Records the current limit of the stack as specified by `end`.
+/// Records the current limit of the stack as specified by `limit`.
 ///
 /// This is stored in an OS-dependent location, likely inside of the thread
 /// local storage. The location that the limit is stored is a pre-ordained
@@ -136,31 +125,44 @@ pub unsafe fn record_os_managed_stack_bounds(stack_lo: uint, _stack_hi: uint) {
 /// would be unfortunate for the functions themselves to trigger a morestack
 /// invocation (if they were an actual function call).
 #[inline(always)]
-pub unsafe fn record_sp_limit(limit: uint) {
+pub unsafe fn record_sp_limit(limit: usize) {
     return target_record_sp_limit(limit);
 
-    // x86-64
-    #[cfg(all(target_arch = "x86_64",
-              any(target_os = "macos", target_os = "ios")))]
+    // Windows maintains a record of upper and lower stack bounds in the Thread Information
+    // Block (TIB), and some syscalls do check that addresses which are supposed to be in
+    // the stack, indeed lie between these two values.
+    // (See https://github.com/rust-lang/rust/issues/3445#issuecomment-26114839)
+    //
+    // Additionally, we use stack probes in Windows, rather than __morestack to detect overflows,
+    // so this is a no-op.
+    #[cfg(target_os = "windows")]
     #[inline(always)]
-    unsafe fn target_record_sp_limit(limit: uint) {
+    unsafe fn target_record_sp_limit(_: usize) {
+    }
+
+    // x86-64
+    #[cfg(all(target_arch = "x86_64", any(target_os = "macos", target_os = "ios")))]
+    #[inline(always)]
+    unsafe fn target_record_sp_limit(limit: usize) {
         asm!("movq $$0x60+90*8, %rsi
               movq $0, %gs:(%rsi)" :: "r"(limit) : "rsi" : "volatile")
     }
-    #[cfg(all(target_arch = "x86_64", target_os = "linux"))] #[inline(always)]
-    unsafe fn target_record_sp_limit(limit: uint) {
+
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    #[inline(always)]
+    unsafe fn target_record_sp_limit(limit: usize) {
         asm!("movq $0, %fs:112" :: "r"(limit) :: "volatile")
     }
-    #[cfg(all(target_arch = "x86_64", target_os = "windows"))] #[inline(always)]
-    unsafe fn target_record_sp_limit(_: uint) {
-    }
-    #[cfg(all(target_arch = "x86_64", target_os = "freebsd"))] #[inline(always)]
-    unsafe fn target_record_sp_limit(limit: uint) {
+
+    #[cfg(all(target_arch = "x86_64", target_os = "freebsd"))]
+    #[inline(always)]
+    unsafe fn target_record_sp_limit(limit: usize) {
         asm!("movq $0, %fs:24" :: "r"(limit) :: "volatile")
     }
+
     #[cfg(all(target_arch = "x86_64", target_os = "dragonfly"))]
     #[inline(always)]
-    unsafe fn target_record_sp_limit(limit: uint) {
+    unsafe fn target_record_sp_limit(limit: usize) {
         asm!("movq $0, %fs:32" :: "r"(limit) :: "volatile")
     }
 
@@ -168,18 +170,16 @@ pub unsafe fn record_sp_limit(limit: uint) {
     #[cfg(all(target_arch = "x86",
               any(target_os = "macos", target_os = "ios")))]
     #[inline(always)]
-    unsafe fn target_record_sp_limit(limit: uint) {
+    unsafe fn target_record_sp_limit(limit: usize) {
         asm!("movl $$0x48+90*4, %eax
               movl $0, %gs:(%eax)" :: "r"(limit) : "eax" : "volatile")
     }
+
     #[cfg(all(target_arch = "x86",
               any(target_os = "linux", target_os = "freebsd")))]
     #[inline(always)]
-    unsafe fn target_record_sp_limit(limit: uint) {
+    unsafe fn target_record_sp_limit(limit: usize) {
         asm!("movl $0, %gs:48" :: "r"(limit) :: "volatile")
-    }
-    #[cfg(all(target_arch = "x86", target_os = "windows"))] #[inline(always)]
-    unsafe fn target_record_sp_limit(_: uint) {
     }
 
     // mips, arm - Some brave soul can port these to inline asm, but it's over
@@ -188,7 +188,7 @@ pub unsafe fn record_sp_limit(limit: uint) {
               target_arch = "mipsel",
               all(target_arch = "arm", not(target_os = "ios"))))]
     #[inline(always)]
-    unsafe fn target_record_sp_limit(limit: uint) {
+    unsafe fn target_record_sp_limit(limit: usize) {
         use libc::c_void;
         return record_sp_limit(limit as *const c_void);
         extern {
@@ -205,7 +205,8 @@ pub unsafe fn record_sp_limit(limit: uint) {
               all(target_arch = "arm", target_os = "ios"),
               target_os = "bitrig",
               target_os = "openbsd"))]
-    unsafe fn target_record_sp_limit(_: uint) {
+    #[inline(always)]
+    unsafe fn target_record_sp_limit(_: usize) {
     }
 }
 
@@ -218,39 +219,49 @@ pub unsafe fn record_sp_limit(limit: uint) {
 /// As with the setter, this function does not have a __morestack header and can
 /// therefore be called in a "we're out of stack" situation.
 #[inline(always)]
-pub unsafe fn get_sp_limit() -> uint {
+pub unsafe fn get_sp_limit() -> usize {
     return target_get_sp_limit();
+
+    // Again, we don’t use __morestack on windows, therefore this value has close to no meaning. We
+    // could extract the value from TIB properly and return it here, but since that won’t get used
+    // anyway, we don’t bother and return a fixed value.
+    #[cfg(target_os = "windows")]
+    #[inline(always)]
+    unsafe fn target_get_sp_limit() -> usize {
+        return 1024;
+    }
 
     // x86-64
     #[cfg(all(target_arch = "x86_64",
               any(target_os = "macos", target_os = "ios")))]
     #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        let limit;
+    unsafe fn target_get_sp_limit() -> usize {
+        let mut limit;
         asm!("movq $$0x60+90*8, %rsi
               movq %gs:(%rsi), $0" : "=r"(limit) :: "rsi" : "volatile");
         return limit;
     }
-    #[cfg(all(target_arch = "x86_64", target_os = "linux"))] #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        let limit;
+
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    #[inline(always)]
+    unsafe fn target_get_sp_limit() -> usize {
+        let mut limit;
         asm!("movq %fs:112, $0" : "=r"(limit) ::: "volatile");
         return limit;
     }
-    #[cfg(all(target_arch = "x86_64", target_os = "windows"))] #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        return 1024;
-    }
-    #[cfg(all(target_arch = "x86_64", target_os = "freebsd"))] #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        let limit;
+
+    #[cfg(all(target_arch = "x86_64", target_os = "freebsd"))]
+    #[inline(always)]
+    unsafe fn target_get_sp_limit() -> usize {
+        let mut limit;
         asm!("movq %fs:24, $0" : "=r"(limit) ::: "volatile");
         return limit;
     }
+
     #[cfg(all(target_arch = "x86_64", target_os = "dragonfly"))]
     #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        let limit;
+    unsafe fn target_get_sp_limit() -> usize {
+        let mut limit;
         asm!("movq %fs:32, $0" : "=r"(limit) ::: "volatile");
         return limit;
     }
@@ -259,23 +270,20 @@ pub unsafe fn get_sp_limit() -> uint {
     #[cfg(all(target_arch = "x86",
               any(target_os = "macos", target_os = "ios")))]
     #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        let limit;
+    unsafe fn target_get_sp_limit() -> usize {
+        let mut limit;
         asm!("movl $$0x48+90*4, %eax
               movl %gs:(%eax), $0" : "=r"(limit) :: "eax" : "volatile");
         return limit;
     }
+
     #[cfg(all(target_arch = "x86",
               any(target_os = "linux", target_os = "freebsd")))]
     #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        let limit;
+    unsafe fn target_get_sp_limit() -> usize {
+        let mut limit;
         asm!("movl %gs:48, $0" : "=r"(limit) ::: "volatile");
         return limit;
-    }
-    #[cfg(all(target_arch = "x86", target_os = "windows"))] #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
-        return 1024;
     }
 
     // mips, arm - Some brave soul can port these to inline asm, but it's over
@@ -284,9 +292,9 @@ pub unsafe fn get_sp_limit() -> uint {
               target_arch = "mipsel",
               all(target_arch = "arm", not(target_os = "ios"))))]
     #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
+    unsafe fn target_get_sp_limit() -> usize {
         use libc::c_void;
-        return get_sp_limit() as uint;
+        return get_sp_limit() as usize;
         extern {
             fn get_sp_limit() -> *const c_void;
         }
@@ -305,7 +313,7 @@ pub unsafe fn get_sp_limit() -> uint {
               target_os = "bitrig",
               target_os = "openbsd"))]
     #[inline(always)]
-    unsafe fn target_get_sp_limit() -> uint {
+    unsafe fn target_get_sp_limit() -> usize {
         1024
     }
 }

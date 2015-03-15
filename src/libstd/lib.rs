@@ -126,6 +126,7 @@
 #![feature(hash)]
 #![feature(int_uint)]
 #![feature(unique)]
+#![feature(intrinsics)]
 #![feature(allow_internal_unstable)]
 #![cfg_attr(test, feature(test, rustc_private))]
 
