@@ -130,6 +130,7 @@ pub use funcs::bsd43::*;
 #[cfg(unix)] pub use funcs::posix88::dirent::*;
 #[cfg(unix)] pub use funcs::posix88::net::*;
 #[cfg(unix)] pub use funcs::posix01::stat_::*;
+#[cfg(unix)] pub use funcs::posix01::resource::*;
 #[cfg(unix)] pub use funcs::posix01::unistd::*;
 
 
@@ -252,6 +253,13 @@ pub mod types {
                 #[derive(Copy)] pub enum timezone {}
 
                 pub type sighandler_t = size_t;
+
+                #[repr(C)]
+                #[derive(Copy)]
+                pub struct rlimit {
+                    pub rlim_cur: c_ulong,
+                    pub rlim_max: c_ulong
+                }
             }
             pub mod bsd44 {
                 use types::common::c95::{c_void};
@@ -767,6 +775,13 @@ pub mod types {
                 #[derive(Copy)] pub enum timezone {}
 
                 pub type sighandler_t = size_t;
+
+                #[repr(C)]
+                #[derive(Copy)]
+                pub struct rlimit {
+                    pub rlim_cur: c_ulong,
+                    pub rlim_max: c_ulong
+                }
             }
             pub mod bsd44 {
                 use types::common::c95::{c_void};
@@ -995,6 +1010,13 @@ pub mod types {
                 #[derive(Copy)] pub enum timezone {}
 
                 pub type sighandler_t = size_t;
+
+                #[repr(C)]
+                #[derive(Copy)]
+                pub struct rlimit {
+                    pub rlim_cur: c_ulong,
+                    pub rlim_max: c_ulong
+                }
             }
             pub mod bsd44 {
                 use types::common::c95::{c_void};
@@ -1241,6 +1263,13 @@ pub mod types {
                 #[derive(Copy)] pub enum timezone {}
 
                 pub type sighandler_t = size_t;
+
+                #[repr(C)]
+                #[derive(Copy)]
+                pub struct rlimit {
+                    pub rlim_cur: c_ulong,
+                    pub rlim_max: c_ulong
+                }
             }
             pub mod bsd44 {
                 use types::common::c95::{c_void};
@@ -1873,6 +1902,13 @@ pub mod types {
                 #[derive(Copy)] pub enum timezone {}
 
                 pub type sighandler_t = size_t;
+
+                #[repr(C)]
+                #[derive(Copy)]
+                pub struct rlimit {
+                    pub rlim_cur: c_ulong,
+                    pub rlim_max: c_ulong
+                }
             }
 
             pub mod bsd44 {
@@ -3102,6 +3138,14 @@ pub mod consts {
 
             pub const CLOCK_REALTIME: c_int = 0;
             pub const CLOCK_MONOTONIC: c_int = 1;
+
+            pub const RLIMIT_CORE: c_int = 4;
+            pub const RLIMIT_CPU: c_int = 0;
+            pub const RLIMIT_DATA: c_int = 2;
+            pub const RLIMIT_FSIZE: c_int = 1;
+            pub const RLIMIT_NOFILE: c_int = 7;
+            pub const RLIMIT_STACK: c_int = 3;
+            pub const RLIMIT_AS: c_int = 9;
         }
         #[cfg(target_os = "nacl")]
         pub mod posix01 {
@@ -3170,6 +3214,14 @@ pub mod consts {
 
             pub const CLOCK_REALTIME: c_int = 0;
             pub const CLOCK_MONOTONIC: c_int = 1;
+
+            pub const RLIMIT_CORE: c_int = 4;
+            pub const RLIMIT_CPU: c_int = 0;
+            pub const RLIMIT_DATA: c_int = 2;
+            pub const RLIMIT_FSIZE: c_int = 1;
+            pub const RLIMIT_NOFILE: c_int = 7;
+            pub const RLIMIT_STACK: c_int = 3;
+            pub const RLIMIT_AS: c_int = 9;
         }
         pub mod posix08 {
         }
@@ -5346,6 +5398,18 @@ pub mod funcs {
                                      len: size_t,
                                      advice: c_int)
                                      -> c_int;
+            }
+        }
+
+        pub mod resource {
+            use types::os::arch::c95::c_int;
+            use types::os::common::posix01::rlimit;
+
+            extern {
+                pub fn getrlimit(resource: c_int,
+                                 limit: *mut rlimit) -> c_int;
+                pub fn setrlimit(resource: c_int,
+                                 limit: *const rlimit) -> c_int;
             }
         }
     }
