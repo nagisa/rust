@@ -29,7 +29,6 @@ pub mod mutex;
 pub mod net;
 pub mod net2;
 pub mod rwlock;
-pub mod stack;
 pub mod thread;
 pub mod thread_info;
 pub mod thread_local;

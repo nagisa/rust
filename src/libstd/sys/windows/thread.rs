@@ -17,18 +17,12 @@ use libc::types::os::arch::extra::{LPSECURITY_ATTRIBUTES, SIZE_T, BOOL,
                                    LPVOID, DWORD, LPDWORD, HANDLE};
 use mem;
 use ptr;
-use sys_common::stack::RED_ZONE;
 use sys_common::thread::*;
+use sys::stack;
 use thunk::Thunk;
 use time::Duration;
 
 pub type rust_thread = HANDLE;
-
-pub mod guard {
-    pub unsafe fn main() -> uint { 0 }
-    pub unsafe fn current() -> uint { 0 }
-    pub unsafe fn init() {}
-}
 
 pub unsafe fn create(stack: usize, p: Thunk) -> io::Result<rust_thread> {
     let p = box p;
@@ -40,8 +34,8 @@ pub unsafe fn create(stack: usize, p: Thunk) -> io::Result<rust_thread> {
     // For now, the only requirement is that it's big enough to hold the
     // red zone.  Round up to the next 64 kB because that's what the NT
     // kernel does, might as well make it explicit.  With the current
-    // 20 kB red zone, that makes for a 64 kB minimum stack.
-    let stack_size = (cmp::max(stack, RED_ZONE) + 0xfffe) & (-0xfffe - 1);
+    // red zone, that makes for a 64 kB minimum stack.
+    let stack_size = (cmp::max(stack, stack::RED_ZONE) + 0xfffe) & (-0xfffe - 1);
     let ret = CreateThread(ptr::null_mut(), stack_size as libc::size_t,
                            thread_start, &*p as *const _ as *mut _,
                            0, ptr::null_mut());
