@@ -178,13 +178,16 @@ pub fn expand_include_bytes(cx: &mut ExtCtxt, sp: Span, tts: &[ast::TokenTree])
     let file = res_rel_file(cx, sp, Path::new(&file));
     let mut bytes = Vec::new();
     match File::open(&file).and_then(|mut f| f.read_to_end(&mut bytes)) {
+        Ok(..) => {
+            let filename = format!("{}", file.display());
+            cx.codemap().new_filemap(filename, format!("{:?}", bytes));
+
+            base::MacEager::expr(cx.expr_lit(sp, ast::LitBinary(Rc::new(bytes))))
+        }
         Err(e) => {
             cx.span_err(sp,
                         &format!("couldn't read {}: {}", file.display(), e));
             return DummyResult::expr(sp);
-        }
-        Ok(..) => {
-            base::MacEager::expr(cx.expr_lit(sp, ast::LitBinary(Rc::new(bytes))))
         }
     }
 }
