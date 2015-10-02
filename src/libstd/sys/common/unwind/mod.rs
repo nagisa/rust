@@ -81,8 +81,13 @@ use sys_common::mutex::Mutex;
 #[path = "seh.rs"] #[doc(hidden)]
 pub mod imp;
 
+// SNAP: remove this and remove not(stage0) from the next block
+#[cfg(all(stage0, windows, target_arch = "x86_64"))]
+#[path = "seh.rs"] #[doc(hidden)]
+pub mod imp;
+
 // x86_64-pc-windows-*
-#[cfg(all(windows, target_arch = "x86_64"))]
+#[cfg(all(not(stage0), windows, target_arch = "x86_64"))]
 #[path = "seh64_gnu.rs"] #[doc(hidden)]
 pub mod imp;
 
