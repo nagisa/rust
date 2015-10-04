@@ -63,6 +63,7 @@
 #![feature(decode_utf16)]
 #![feature(utf8_error)]
 #![cfg_attr(test, feature(clone_from_slice, rand, test))]
+#![feature(placement_new_protocol)]
 
 #![feature(no_std)]
 #![no_std]

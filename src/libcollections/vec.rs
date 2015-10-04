@@ -1140,6 +1140,32 @@ impl<T> ops::DerefMut for Vec<T> {
     }
 }
 
+pub struct VecPlace<'a, T: 'a>(&'a mut Vec<T>);
+
+impl<'a, T: 'a> ops::Placer<T> for &'a mut Vec<T> {
+    type Place = VecPlace<'a, T>;
+    #[inline]
+    fn make_place(self) -> VecPlace<'a, T> {
+        if self.len == self.buf.cap() { self.buf.double(); }
+        VecPlace(self)
+    }
+}
+
+impl<'a, T: 'a> ops::Place<T> for VecPlace<'a, T> {
+    fn pointer(&mut self) -> *mut T {
+        unsafe {
+            self.0.as_mut_ptr().offset((self.0.len + 1) as isize)
+        }
+    }
+}
+
+impl<'a, T: 'a> ops::InPlace<T> for VecPlace<'a, T> {
+    type Owner = ();
+    unsafe fn finalize(self) -> () {
+        self.0.len += 1;
+    }
+}
+
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T> FromIterator<T> for Vec<T> {
     #[inline]

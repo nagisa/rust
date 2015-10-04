@@ -12,6 +12,7 @@ use std::iter::{FromIterator, repeat};
 use std::mem::size_of;
 
 use test::Bencher;
+use test::black_box;
 
 struct DropCounter<'a> {
     count: &'a mut u32
@@ -944,4 +945,34 @@ fn bench_clone_from_10_0100_0010(b: &mut Bencher) {
 #[bench]
 fn bench_clone_from_10_1000_0100(b: &mut Bencher) {
     do_bench_clone_from(b, 10, 1000, 100)
+}
+
+fn bench_emplace_elements(b: &mut Bencher, elnum: usize) {
+    b.iter(||{
+        let mut x =  Vec::with_capacity(elnum);
+        for i in 0..elnum {
+            in &mut x {black_box(i)};
+        }
+        x
+    });
+}
+
+fn bench_push_elements(b: &mut Bencher, elnum: usize) {
+    b.iter(||{
+        let mut x =  Vec::with_capacity(elnum);
+        for i in 0..elnum {
+            x.push(black_box(i));
+        }
+        x
+    });
+}
+
+#[bench]
+fn bench_emplace_elements_10000(b: &mut Bencher) {
+    bench_emplace_elements(b, 10000)
+}
+
+#[bench]
+fn bench_push_elements_10000(b: &mut Bencher) {
+    bench_push_elements(b, 10000)
 }

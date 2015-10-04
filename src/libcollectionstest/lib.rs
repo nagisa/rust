@@ -36,6 +36,7 @@
 #![feature(test)]
 #![feature(unboxed_closures)]
 #![feature(unicode)]
+#![feature(placement_in_syntax)]
 #![feature(vec_push_all)]
 
 #[macro_use] extern crate log;
