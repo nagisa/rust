@@ -150,7 +150,18 @@ pub fn Invoke(cx: Block,
            cx.val_to_string(fn_),
            args.iter().map(|a| cx.val_to_string(*a)).collect::<Vec<String>>().join(", "));
     debug_loc.apply(cx.fcx);
-    B(cx).invoke(fn_, args, then, catch, attributes)
+    let bundle = cx.lpad.as_ref().and_then(|b| b.bundle());
+    let ret = B(cx).invoke(fn_, args, then, catch, bundle, attributes);
+
+    // See the comments in `Call` for why the `nounwind` attribute is being set
+    // here.
+    if bundle.is_some() {
+        unsafe {
+            llvm::LLVMRustSetInvokeDoesNotThrow(ret);
+        }
+    }
+
+    return ret
 }
 
 pub fn Unreachable(cx: Block) {
@@ -914,7 +925,33 @@ pub fn Call(cx: Block,
         return _UndefReturn(cx, fn_);
     }
     debug_loc.apply(cx.fcx);
-    B(cx).call(fn_, args, attributes)
+    let bundle = cx.lpad.as_ref().and_then(|b| b.bundle());
+    let ret = B(cx).call(fn_, args, bundle, attributes);
+
+    // When this call instruction is part of a MSVC landing pad, this is
+    // currently indicated by the `bundle` variable being Some. As a reminder,
+    // this bundle serves to inform LLVM what cleanup pad this call instruction
+    // is a part of.
+    //
+    // Currently there is a bug in LLVM [1] which *also* requires us to mark all
+    // calls in cleanup pads as `nounwind`, otherwise LLVM will choke on an
+    // inliner error. To accomplish this we recognize when we're generating a
+    // call in a cleanup pad here and tag it as `nounwind` (e.g. it can't
+    // throw).
+    //
+    // Note that this property is indeed true at runtime as well because if
+    // we're executing a cleanup pad the thread has already panicked, and
+    // panicking again currently aborts the process (e.g. the calls can't
+    // unwind).
+    //
+    // [1]: https://llvm.org/bugs/show_bug.cgi?id=26147
+    if bundle.is_some() {
+        unsafe {
+            llvm::LLVMRustSetCallDoesNotThrow(ret);
+        }
+    }
+
+    return ret
 }
 
 pub fn CallWithConv(cx: Block,
@@ -928,7 +965,8 @@ pub fn CallWithConv(cx: Block,
         return _UndefReturn(cx, fn_);
     }
     debug_loc.apply(cx.fcx);
-    B(cx).call_with_conv(fn_, args, conv, attributes)
+    let bundle = cx.lpad.as_ref().and_then(|b| b.bundle());
+    B(cx).call_with_conv(fn_, args, conv, bundle, attributes)
 }
 
 pub fn AtomicFence(cx: Block, order: AtomicOrdering, scope: SynchronizationScope) {
@@ -1050,6 +1088,10 @@ pub fn SetCleanup(cx: Block, landing_pad: ValueRef) {
     B(cx).set_cleanup(landing_pad)
 }
 
+pub fn SetPersonalityFn(cx: Block, f: ValueRef) {
+    B(cx).set_personality_fn(f)
+}
+
 pub fn Resume(cx: Block, exn: ValueRef) -> ValueRef {
     check_not_terminated(cx);
     terminate(cx, "Resume");
@@ -1067,4 +1109,47 @@ pub fn AtomicRMW(cx: Block, op: AtomicBinOp,
                  dst: ValueRef, src: ValueRef,
                  order: AtomicOrdering) -> ValueRef {
     B(cx).atomic_rmw(op, dst, src, order)
+}
+
+pub fn CleanupPad(cx: Block,
+                  parent: Option<ValueRef>,
+                  args: &[ValueRef]) -> ValueRef {
+    check_not_terminated(cx);
+    assert!(!cx.unreachable.get());
+    B(cx).cleanup_pad(parent, args)
+}
+
+pub fn CleanupRet(cx: Block,
+                  cleanup: ValueRef,
+                  unwind: Option<BasicBlockRef>) -> ValueRef {
+    check_not_terminated(cx);
+    terminate(cx, "CleanupRet");
+    B(cx).cleanup_ret(cleanup, unwind)
+}
+
+pub fn CatchPad(cx: Block,
+                parent: ValueRef,
+                args: &[ValueRef]) -> ValueRef {
+    check_not_terminated(cx);
+    assert!(!cx.unreachable.get());
+    B(cx).catch_pad(parent, args)
+}
+
+pub fn CatchRet(cx: Block, pad: ValueRef, unwind: BasicBlockRef) -> ValueRef {
+    check_not_terminated(cx);
+    terminate(cx, "CatchRet");
+    B(cx).catch_ret(pad, unwind)
+}
+
+pub fn CatchSwitch(cx: Block,
+                   parent: Option<ValueRef>,
+                   unwind: Option<BasicBlockRef>,
+                   num_handlers: usize) -> ValueRef {
+    check_not_terminated(cx);
+    terminate(cx, "CatchSwitch");
+    B(cx).catch_switch(parent, unwind, num_handlers)
+}
+
+pub fn AddHandler(cx: Block, catch_switch: ValueRef, handler: BasicBlockRef) {
+    B(cx).add_handler(catch_switch, handler)
 }

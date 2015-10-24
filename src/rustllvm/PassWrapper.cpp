@@ -332,6 +332,20 @@ LLVMRustMarkAllFunctionsNounwind(LLVMModuleRef M) {
 }
 
 extern "C" void
+LLVMRustSetCallDoesNotThrow(LLVMValueRef Inst) {
+    Value *I = unwrap(Inst);
+    CallInst *Call = cast<CallInst>(I);
+    Call->setDoesNotThrow();
+}
+
+extern "C" void
+LLVMRustSetInvokeDoesNotThrow(LLVMValueRef Inst) {
+    Value *I = unwrap(Inst);
+    InvokeInst *Invoke = cast<InvokeInst>(I);
+    Invoke->setDoesNotThrow();
+}
+
+extern "C" void
 LLVMRustSetDataLayoutFromTargetMachine(LLVMModuleRef Module,
                                        LLVMTargetMachineRef TMR) {
     TargetMachine *Target = unwrap(TMR);

@@ -14,7 +14,7 @@ use trans::adt;
 use trans::base;
 use trans::build;
 use trans::attributes;
-use trans::common::{self, Block};
+use trans::common::{self, Block, LandingPad};
 use trans::debuginfo::DebugLoc;
 use trans::type_of;
 use trans::type_::Type;
@@ -143,7 +143,8 @@ impl<'bcx, 'tcx> MirContext<'bcx, 'tcx> {
                         let cleanup = self.bcx(targets.1);
                         let landingpad = self.make_landing_pad(cleanup);
                         let (target, postinvoke) = if must_copy_dest {
-                            (bcx.fcx.new_block(false, "", None), Some(self.bcx(targets.0)))
+                            (bcx.fcx.new_block(None, "", None),
+                             Some(self.bcx(targets.0)))
                         } else {
                             (self.bcx(targets.0), None)
                         };
@@ -229,7 +230,8 @@ impl<'bcx, 'tcx> MirContext<'bcx, 'tcx> {
     }
 
     fn make_landing_pad(&mut self, cleanup: Block<'bcx, 'tcx>) -> Block<'bcx, 'tcx> {
-        let bcx = cleanup.fcx.new_block(true, "cleanup", None);
+        let pad = LandingPad::gnu();
+        let bcx = cleanup.fcx.new_block(Some(pad), "cleanup", None);
         let ccx = bcx.ccx();
         let llpersonality = bcx.fcx.eh_personality();
         let llretty = Type::struct_(ccx, &[Type::i8p(ccx), Type::i32(ccx)], false);
@@ -245,7 +247,7 @@ impl<'bcx, 'tcx> MirContext<'bcx, 'tcx> {
         match self.unreachable_block {
             Some(b) => b,
             None => {
-                let bl = self.fcx.new_block(false, "unreachable", None);
+                let bl = self.fcx.new_block(None, "unreachable", None);
                 build::Unreachable(bl);
                 self.unreachable_block = Some(bl);
                 bl
