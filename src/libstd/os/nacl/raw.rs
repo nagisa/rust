@@ -10,6 +10,8 @@
 
 //! Nacl-specific raw type definitions
 
+use os::raw::c_void;
+
 #![stable(feature = "raw_ext", since = "1.1.0")]
 
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type time_t = i32;
@@ -23,6 +25,10 @@
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type nlink_t = u32;
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type blksize_t = i32;
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type blkcnt_t = i32;
+
+
+#[unstable(feature = "pthread_t", since = "1.6.0", issue="0")]
+pub type pthread_t = *mut c_void;
 
 #[repr(C)]
 #[derive(Copy, Clone)]

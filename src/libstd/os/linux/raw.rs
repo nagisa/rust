@@ -10,13 +10,19 @@
 
 //! Linux-specific raw type definitions
 
+use os::raw::c_ulong;
+
 #![stable(feature = "raw_ext", since = "1.1.0")]
 
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type dev_t = u64;
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type mode_t = u32;
 
+
 #[doc(inline)]
 pub use self::arch::{off_t, ino_t, nlink_t, blksize_t, blkcnt_t, stat, time_t};
+
+#[unstable(feature = "pthread_t", since = "1.6.0", issue="0")]
+pub type pthread_t = c_ulong;
 
 #[cfg(any(target_arch = "x86",
           target_arch = "le32",

@@ -24,6 +24,9 @@ use os::unix::raw::{uid_t, gid_t};
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type off_t = i64;
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type time_t = c_long;
 
+#[unstable(feature = "pthread_t", since = "1.6.0", issue="0")]
+pub type pthread_t = arch::uintptr_t;
+
 #[repr(C)]
 #[derive(Clone)]
 #[stable(feature = "raw_ext", since = "1.1.0")]
@@ -72,4 +75,24 @@ pub struct stat {
     pub st_lspare: i32,
     #[stable(feature = "raw_ext", since = "1.1.0")]
     pub st_qspare: [i64; 2],
+}
+
+#[cfg(any(target_arch = "arm", target_arch = "x86"))]
+mod arch {
+    pub type uintptr_t = u32;
+}
+
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+mod arch {
+    pub type uintptr_t = u64;
+}
+
+#[cfg(any(target_arch = "x86",
+          target_arch = "arm",
+          target_arch = "mips",
+          target_arch = "mipsel",
+          target_arch = "powerpc",
+          target_arch = "le32"))]
+mod arch {
+    pub type uintptr_t = u32;
 }

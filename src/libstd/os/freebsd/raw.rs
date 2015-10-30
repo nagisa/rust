@@ -21,6 +21,9 @@
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type blkcnt_t = i64;
 #[stable(feature = "raw_ext", since = "1.1.0")] pub type fflags_t = u32;
 
+#[unstable(feature = "pthread_t", since = "1.6.0", issue="0")]
+pub type pthread_t = arch::uintptr_t;
+
 #[doc(inline)]
 pub use self::arch::{stat, time_t};
 
@@ -31,6 +34,8 @@ mod arch {
     use os::unix::raw::{uid_t, gid_t};
 
     #[stable(feature = "raw_ext", since = "1.1.0")] pub type time_t = i32;
+
+    pub type uintptr_t = u32;
 
     #[repr(C)]
     #[derive(Clone)]
@@ -90,6 +95,8 @@ mod arch {
     use os::unix::raw::{uid_t, gid_t};
 
     #[stable(feature = "raw_ext", since = "1.1.0")] pub type time_t = i64;
+
+    pub type uintptr_t = u64;
 
     #[repr(C)]
     #[derive(Clone)]

@@ -12,8 +12,13 @@
 
 #![stable(feature = "raw_ext", since = "1.1.0")]
 
+use os::raw::c_ulong;
+
 #[doc(inline)]
 pub use self::arch::{dev_t, mode_t, blkcnt_t, blksize_t, ino_t, nlink_t, off_t, stat, time_t};
+
+#[unstable(feature = "pthread_t", since = "1.6.0", issue="0")]
+pub type pthread_t = c_ulong;
 
 #[cfg(any(target_arch = "arm", target_arch = "x86"))]
 mod arch {
