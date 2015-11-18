@@ -516,7 +516,7 @@ fn convert_arm<'a, 'tcx: 'a>(cx: &mut Cx<'a, 'tcx>, arm: &'tcx hir::Arm) -> Arm<
 fn convert_path_expr<'a, 'tcx: 'a>(cx: &mut Cx<'a, 'tcx>, expr: &'tcx hir::Expr) -> ExprKind<'tcx> {
     let substs = cx.tcx.mk_substs(cx.tcx.node_id_item_substs(expr.id).substs);
     // Otherwise there may be def_map borrow conflicts
-    let def = { cx.tcx.def_map.borrow()[&expr.id].full_def() };
+    let def = cx.tcx.def_map.borrow()[&expr.id].full_def();
     match def {
         def::DefVariant(_, def_id, false) |
         def::DefStruct(def_id) |
