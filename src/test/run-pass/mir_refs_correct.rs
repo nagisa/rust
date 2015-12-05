@@ -25,6 +25,32 @@ trait X {
     fn hoy2() -> u8 { 45 }
 }
 
+trait F<U> {
+    fn f(self, other: U) -> u64;
+}
+
+impl F<u32> for u32 {
+    fn f(self, other: u32) -> u64 { self as u64 + other as u64 }
+}
+
+impl F<u64> for u32 {
+    fn f(self, other: u64) -> u64 { self as u64 - other }
+}
+
+impl F<u64> for u64 {
+    fn f(self, other: u64) -> u64 { self * other }
+}
+
+impl F<u32> for u64 {
+    fn f(self, other: u32) -> u64 { self ^ other as u64 }
+}
+
+trait T<I, O> {
+    fn staticmeth(i: I, o: O) -> (I, O) { (i, o) }
+}
+
+impl<I, O> T<I, O> for O {}
+
 impl X for S {}
 
 enum E {
@@ -118,6 +144,31 @@ fn t15() -> fn(&S)-> u8 {
     S::hey2
 }
 
+#[rustc_mir]
+fn t16() -> fn(u32, u32)->u64 {
+    F::f
+}
+
+#[rustc_mir]
+fn t17() -> fn(u32, u64)->u64 {
+    F::f
+}
+
+#[rustc_mir]
+fn t18() -> fn(u64, u64)->u64 {
+    F::f
+}
+
+#[rustc_mir]
+fn t19() -> fn(u64, u32)->u64 {
+    F::f
+}
+
+#[rustc_mir]
+fn t20() -> fn(u64, u32)->(u64, u32) {
+    <u32 as T<_, _>>::staticmeth
+}
+
 fn main(){
     unsafe {
         assert_eq!(t1()(), regular());
@@ -151,5 +202,10 @@ fn main(){
 
         assert_eq!(t14()(), <S as X>::hoy2());
         assert_eq!(t15()(&s), S::hey2(&s));
+        assert_eq!(t16()(10u32, 20u32), F::f(10u32, 20u32));
+        assert_eq!(t17()(30u32, 10u64), F::f(30u32, 10u64));
+        assert_eq!(t18()(50u64, 5u64), F::f(50u64, 5u64));
+        assert_eq!(t19()(322u64, 2u32), F::f(322u64, 2u32));
+        assert_eq!(t20()(123u64, 38u32), <u32 as T<_, _>>::staticmeth(123, 38));
     }
 }
