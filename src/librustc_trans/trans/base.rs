@@ -913,12 +913,8 @@ pub fn invoke<'blk, 'tcx>(bcx: Block<'blk, 'tcx>,
     let attributes = attributes::from_fn_type(bcx.ccx(), fn_ty);
 
     match bcx.opt_node_id {
-        None => {
-            debug!("invoke at ???");
-        }
-        Some(id) => {
-            debug!("invoke at {}", bcx.tcx().map.node_to_string(id));
-        }
+        None => debug!("invoke at ???"),
+        Some(id) => debug!("invoke at {}", bcx.tcx().map.node_to_string(id)),
     }
 
     if need_invoke(bcx) {
