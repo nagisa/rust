@@ -490,13 +490,7 @@ pub struct Statement<'tcx> {
 #[derive(Debug, RustcEncodable, RustcDecodable)]
 pub enum StatementKind<'tcx> {
     Assign(Lvalue<'tcx>, Rvalue<'tcx>),
-    Drop(DropKind, Lvalue<'tcx>),
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, RustcEncodable, RustcDecodable)]
-pub enum DropKind {
-    Free, // free a partially constructed box, should go away eventually
-    Deep
+    Drop(Lvalue<'tcx>),
 }
 
 impl<'tcx> Debug for Statement<'tcx> {
@@ -504,8 +498,7 @@ impl<'tcx> Debug for Statement<'tcx> {
         use self::StatementKind::*;
         match self.kind {
             Assign(ref lv, ref rv) => write!(fmt, "{:?} = {:?}", lv, rv),
-            Drop(DropKind::Free, ref lv) => write!(fmt, "free {:?}", lv),
-            Drop(DropKind::Deep, ref lv) => write!(fmt, "drop {:?}", lv),
+            Drop(ref lv) => write!(fmt, "drop {:?}", lv),
         }
     }
 }
