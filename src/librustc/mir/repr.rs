@@ -335,29 +335,29 @@ impl<'tcx> CallKind<'tcx> {
 }
 
 impl<'tcx> Terminator<'tcx> {
-    pub fn successors(&self) -> &[BasicBlock] {
+    pub fn successors(&self) -> Vec<BasicBlock> {
         use self::Terminator::*;
         match *self {
-            Goto { target: ref b } => slice::ref_slice(b),
-            If { targets: ref b, .. } => b.as_slice(),
-            Switch { targets: ref b, .. } => b,
-            SwitchInt { targets: ref b, .. } => b,
-            Resume => &[],
-            Return => &[],
-            Call { ref kind, .. } => kind.successors(),
+            Goto { target: b } => vec![b],
+            If { targets: (b1, b2), .. } => vec![b1, b2],
+            Switch { targets: ref b, .. } => b.clone(),
+            SwitchInt { targets: ref b, .. } => b.clone(),
+            Resume => Vec::new(),
+            Return => Vec::new(),
+            Call { ref kind, .. } => kind.successors().iter().cloned().collect(),
         }
     }
 
-    pub fn successors_mut(&mut self) -> &mut [BasicBlock] {
+    pub fn successors_mut(&mut self) -> Vec<&mut BasicBlock> {
         use self::Terminator::*;
         match *self {
-            Goto { target: ref mut b } => slice::mut_ref_slice(b),
-            If { targets: ref mut b, .. } => b.as_mut_slice(),
-            Switch { targets: ref mut b, .. } => b,
-            SwitchInt { targets: ref mut b, .. } => b,
-            Resume => &mut [],
-            Return => &mut [],
-            Call { ref mut kind, .. } => kind.successors_mut(),
+            Goto { target: ref mut b } => vec![b],
+            If { targets: (ref mut b1, ref mut b2), .. } => vec![b1, b2],
+            Switch { targets: ref mut b, .. } => b.iter_mut().collect(),
+            SwitchInt { targets: ref mut b, .. } => b.iter_mut().collect(),
+            Resume => Vec::new(),
+            Return => Vec::new(),
+            Call { ref mut kind, .. } => kind.successors_mut().iter_mut().collect(),
         }
     }
 }

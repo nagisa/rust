@@ -32,7 +32,7 @@ impl SimplifyCfg {
             for succ in mir.basic_block_data(bb).terminator().successors() {
                 if !seen[succ.index()] {
                     seen[succ.index()] = true;
-                    worklist.push(*succ);
+                    worklist.push(succ);
                 }
             }
         }
