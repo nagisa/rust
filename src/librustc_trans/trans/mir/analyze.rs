@@ -124,3 +124,37 @@ impl<'tcx> Visitor<'tcx> for TempAnalyzer {
         self.super_lvalue(lvalue, context);
     }
 }
+
+// Analyzes whether the variables get dropped.
+struct DropAnalyzer {
+    pub vars: BitVector,
+    pub args: BitVector,
+    pub temps: BitVector,
+}
+
+impl DropAnalyzer {
+    pub fn new() -> DropAnalyzer {
+        DropAnalyzer {
+            vars: BitVector::new(),
+            args: BitVector::new(),
+            temps: BitVector::new(),
+        }
+    }
+}
+
+impl<'tcx> Visitor<'tcx> for DistinctDrops {
+    fn visit_lvalue(&mut self, lvalue: &mir::Lvalue<'tcx>, context: LvalueContext) {
+        if context == LvalueContext::Drop {
+            match *lvalue {
+                mir::Lvalue::Var(vid) => self.vars.insert(vid),
+                mir::Lvalue::Arg(aid) => self.args.insert(aid),
+                mir::Lvalue::Temp(tid) => self.temps.insert(tid),
+                // Cannot be dropped.
+                mir::Lvalue::Static(_) | mir::Lvalue::ReturnPointer | mir::Lvalue::Projection(_) => {
+                    panic!("undroppable lvalue is being dropped!")
+                }
+            }
+        }
+        self.super_lvalue(lvalue, context);
+    }
+}

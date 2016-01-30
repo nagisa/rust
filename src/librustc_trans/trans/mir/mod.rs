@@ -10,6 +10,7 @@
 
 use libc::c_uint;
 use llvm::{self, ValueRef};
+use rustc_data_structures::bitvec::BitVector;
 use rustc::mir::repr as mir;
 use rustc::mir::tcx::LvalueTy;
 use trans::base;
@@ -89,18 +90,33 @@ pub fn trans_mir<'bcx, 'tcx>(bcx: Block<'bcx, 'tcx>) {
     // FIXME
     let lvalue_temps = analyze::lvalue_temps(bcx, mir);
 
+    let drops = analyze::DropAnalyzer::new();
+    let mut dropflag_count = 0;
+    drops.visit_mir(mir);
+
     // Allocate variable and temp allocas
     let vars = mir.var_decls.iter()
                             .map(|decl| (bcx.monomorphize(&decl.ty), decl.name))
-                            .map(|(mty, name)| LvalueRef::alloca(bcx, mty, &name.as_str()))
+                            .enumerate()
+                            .map(|(i, (mty, name))| {
+                                let lvalue = LvalueRef::alloca(bcx, mty, &name.as_str());
+                                if drops.vars.contains(i) {
+                                    lvalue.dropflag_slot = Some(dropflag_count);
+                                    dropflag_count += 1;
+                                }
+                            })
                             .collect();
     let temps = mir.temp_decls.iter()
                               .map(|decl| bcx.monomorphize(&decl.ty))
                               .enumerate()
                               .map(|(i, mty)| if lvalue_temps.contains(i) {
-                                  TempRef::Lvalue(LvalueRef::alloca(bcx,
-                                                                    mty,
-                                                                    &format!("temp{:?}", i)))
+                                  let lvalue = LvalueRef::alloca(bcx, mty,
+                                                                 &format!("temp{:?}", i));
+                                  if drops.temps.contains(i) {
+                                      lvalue.dropflag_slot = Some(dropflag_count);
+                                      dropflag_count += 1;
+                                  }
+                                  TempRef::Lvalue(lvalue)
                               } else {
                                   // If this is an immediate temp, we do not create an
                                   // alloca in advance. Instead we wait until we see the
@@ -108,7 +124,7 @@ pub fn trans_mir<'bcx, 'tcx>(bcx: Block<'bcx, 'tcx>) {
                                   TempRef::Operand(None)
                               })
                               .collect();
-    let args = arg_value_refs(bcx, mir);
+    let args = arg_value_refs(bcx, mir, &drops.args, &mut dropflag_count);
 
     // Allocate a `Block` for every basic block
     let block_bcxs: Vec<Block<'bcx,'tcx>> =
@@ -144,7 +160,9 @@ pub fn trans_mir<'bcx, 'tcx>(bcx: Block<'bcx, 'tcx>) {
 /// argument's value. As arguments are lvalues, these are always
 /// indirect.
 fn arg_value_refs<'bcx, 'tcx>(bcx: Block<'bcx, 'tcx>,
-                              mir: &mir::Mir<'tcx>)
+                              mir: &mir::Mir<'tcx>,
+                              drops: &BitVector,
+                              dropflag_count: &mut usize)
                               -> Vec<LvalueRef<'tcx>> {
     // FIXME tupled_args? I think I'd rather that mapping is done in MIR land though
     let fcx = bcx.fcx;
@@ -183,7 +201,12 @@ fn arg_value_refs<'bcx, 'tcx>(bcx: Block<'bcx, 'tcx>,
                base::store_ty(bcx, llarg, lltemp, arg_ty);
                lltemp
            };
-           LvalueRef::new_sized(llval, LvalueTy::from_ty(arg_ty))
+           let lvalue = LvalueRef::new_sized(llval, LvalueTy::from_ty(arg_ty));
+           if drops.contains(arg_index) {
+               lvalue.dropflag_slot = Some(dropflag_count);
+               dropflag_count += 1;
+           }
+           lvalue
        })
        .collect()
 }

@@ -36,11 +36,14 @@ pub struct LvalueRef<'tcx> {
 
     /// Monomorphized type of this lvalue, including variant information
     pub ty: LvalueTy<'tcx>,
+
+    /// Index of drop flag for this value.
+    pub dropflag_slot: Option<usize>
 }
 
 impl<'tcx> LvalueRef<'tcx> {
     pub fn new_sized(llval: ValueRef, lvalue_ty: LvalueTy<'tcx>) -> LvalueRef<'tcx> {
-        LvalueRef { llval: llval, llextra: ptr::null_mut(), ty: lvalue_ty }
+        LvalueRef { llval: llval, llextra: ptr::null_mut(), ty: lvalue_ty, dropflag_slot: None }
     }
 
     pub fn alloca<'bcx>(bcx: Block<'bcx, 'tcx>,
