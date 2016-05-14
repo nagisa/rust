@@ -52,7 +52,6 @@ impl<'l, 'tcx> MirPass<'tcx> for SimplifyCfg<'l> {
     fn run_pass<'a>(&mut self, _tcx: TyCtxt<'a, 'tcx, 'tcx>, _src: MirSource, mir: &mut Mir<'tcx>) {
         CfgSimplifier::new(mir).simplify();
         remove_dead_blocks(mir);
-
         // FIXME: Should probably be moved into some kind of pass manager
         mir.basic_blocks_mut().raw.shrink_to_fit();
     }
