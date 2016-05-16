@@ -1049,7 +1049,7 @@ pub fn phase_4_translate_to_llvm<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
         passes.push_pass(box mir::transform::simplify_cfg::SimplifyCfg::new("no-landing-pads"));
 
         passes.push_pass(box mir::transform::erase_regions::EraseRegions);
-        passes.push_pass(box mir::transform::acs_propagate::ACSPropagate);
+        passes.push_pass(box mir::transform::acs_propagate::AcsPropagate);
         passes.push_pass(box mir::transform::simplify_cfg::SimplifyCfg::new("acs-propagate"));
 
         passes.push_pass(box mir::transform::add_call_guards::AddCallGuards);
