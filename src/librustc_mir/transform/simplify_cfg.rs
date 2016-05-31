@@ -83,7 +83,7 @@ impl<'tcx> MirPass<'tcx> for SimplifyCfg {
         while changed {
             pretty::dump_mir(tcx, "simplify_cfg", &counter, src, mir, None);
             counter += 1;
-            changed |= self.remove_goto_chains(mir);
+            changed = self.remove_goto_chains(mir);
             RemoveDeadBlocks.run_pass(tcx, src, mir);
         }
         // FIXME: Should probably be moved into some kind of pass manager
