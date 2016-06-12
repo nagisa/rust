@@ -13,20 +13,22 @@
 //!
 //! All these are very similar in their nature:
 //!
-//!                 | Constant  |  Alias   | Simplify  |
-//!|----------------|-----------|----------|-----------|
-//!| Lattice Domain | Lvalue    | Lvalue   | Lvalue    |
-//!| Lattice Value  | Constant  | Lvalue   | Constant  |
-//!| Transfer       | x = const | x = lval | x = const |
-//!| Rewrite        | x → const | x → lval | T(x) → T' |
-//!| Bottom         | {}        | {}       | {}        |
+//!                  | Constant  |  Alias   | Simplify  |
+//! |----------------|-----------|----------|-----------|
+//! | Lattice Domain | Lvalue    | Lvalue   | Lvalue    |
+//! | Lattice Value  | Constant  | Lvalue   | Constant  |
+//! | Transfer       | x = const | x = lval | x = const |
+//! | Rewrite        | x → const | x → lval | T(x) → T' |
+//! | Bottom         | N.A.      | N.A.     | N.A.      |
+//! | Top            | {}        | {}       | {}        |
+//! | Join           | intersect | intersec | intersect |
 //!
-//! For all of them we will be using a lattice of Hashmap from Lvalue to
-//! WTop<Either<Lvalue, Constant>>
-//!
-//! My personal belief is that it should be possible to make a way to compose two hashmap lattices
-//! into one, but I can’t seem to get it just right yet, so we do the composing and decomposing
-//! manually here.
+//! For all of them we will be using a lattice of `WBottom<Hashmap<Lvalue, Either<Lvalue,
+//! Constant>>>`.
+//
+// My personal belief is that it should be possible to make a way to compose values of two hashmap
+// lattices into one, but I can’t seem to get it just right yet, so we do the composing and
+// decomposing manually here.
 
 use rustc_data_structures::fnv::FnvHashMap;
 use rustc::mir::repr::*;

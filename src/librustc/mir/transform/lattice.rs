@@ -12,12 +12,27 @@ use std::fmt::{Debug, Formatter};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+/// A lattice type for forward and backward dataflow.
+///
+/// This lattice requires ⊥ to be defined for both forward and backward analyses, however some of
+/// the analyses might not need it, therefore it is fine to implement it as a panic (`bug!`).
 pub trait Lattice: Clone {
     fn bottom() -> Self;
     fn join(&mut self, other: &Self) -> bool;
 }
 
 /// Extend the type with a Top point.
+///
+/// Lattice extended with a top point follows these rules:
+///
+/// ```
+/// v + v = V::join(v, v)
+/// ⊤ + v = ⊤ (no change)
+/// v + ⊤ = ⊤
+/// ⊤ + ⊤ = ⊤ (no change)
+/// ```
+///
+/// where `v` is the wrapped value and `V` is its type.
 #[derive(Clone, PartialEq)]
 pub enum WTop<T> {
     Top,
@@ -29,10 +44,6 @@ impl<T: Lattice> Lattice for WTop<T> {
         WTop::Value(<T as Lattice>::bottom())
     }
 
-    /// V + V = join(v, v)
-    /// ⊤ + V = ⊤ (no change)
-    /// V + ⊤ = ⊤
-    /// ⊤ + ⊤ = ⊤ (no change)
     fn join(&mut self, other: &Self) -> bool {
         match (self, other) {
             (&mut WTop::Value(ref mut this), &WTop::Value(ref o)) => <T as Lattice>::join(this, o),
@@ -54,10 +65,21 @@ impl<T: Debug> Debug for WTop<T> {
     }
 }
 
-/// Extend the type with a bottom point
+/// Extend the type with a bottom point.
 ///
-/// This guarantees the bottom() of the underlying lattice won’t get called so it may be
-/// implemented as a `panic!()` or something.
+/// This guarantees the bottom() of the underlying lattice won’t get called, making this is a
+/// useful wrapper for lattices with no obvious bottom value.
+///
+/// Lattice extended with a bottom point follows these rules:
+///
+/// ```
+/// v + v = V::join(v, v)
+/// ⊥ + v = v
+/// v + ⊥ = v (no change)
+/// ⊥ + ⊥ = ⊥ (no change)
+/// ```
+///
+/// where `v` is the wrapped value and `V` is its type.
 #[derive(Clone, PartialEq)]
 pub enum WBottom<T> {
     Bottom,
@@ -69,10 +91,6 @@ impl<T: Lattice> Lattice for WBottom<T> {
         WBottom::Bottom
     }
 
-    /// V + V = join(v, v)
-    /// ⊥ + V = V
-    /// V + ⊥ = V (no change)
-    /// ⊥ + ⊥ = ⊥ (no change)
     fn join(&mut self, other: &Self) -> bool {
         match (self, other) {
             (&mut WBottom::Value(ref mut this), &WBottom::Value(ref o)) =>
@@ -97,8 +115,27 @@ impl<T: Debug> Debug for WBottom<T> {
 }
 
 /// Extend the type with both bottom and top points.
+///
+/// Lattice extended with both points follows these rules:
+///
+/// ```
+/// v + v = join(v, v)
+/// v + ⊥ = v (no change)
+/// v + ⊤ = ⊤
+/// ⊥ + v = v
+/// ⊥ + ⊥ = ⊥ (no change)
+/// ⊥ + ⊤ = ⊤
+/// ⊤ + v = ⊤ (no change)
+/// ⊤ + ⊤ = ⊤ (no change)
+/// ⊤ + ⊥ = ⊤ (no change)
+/// ```
+///
+/// where `v` is the wrapped value and `V` is its type.
 type WTopBottom<T> = WTop<WBottom<T>>;
 
+
+// TODO: should have wrapper, really, letting to pick between union or intersection..
+/// A hashmap lattice with union join operation.
 impl<K, T, H> Lattice for HashMap<K, T, H>
 where K: Clone + Eq + ::std::hash::Hash,
       T: Lattice,
@@ -121,5 +158,3 @@ where K: Clone + Eq + ::std::hash::Hash,
         changed
     }
 }
-
-

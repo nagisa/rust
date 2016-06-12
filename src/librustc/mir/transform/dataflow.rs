@@ -40,6 +40,7 @@ pub trait Rewrite<'tcx, L: Lattice> {
     /// replacement graph too.
     fn term(&self, &mir::Terminator<'tcx>, &L, &mut CFG<'tcx>) -> TerminatorChange<'tcx>;
 
+    /// Combine two rewrites using RewriteAndThen combinator.
     fn and_then<R2>(self, other: R2) -> RewriteAndThen<Self, R2> where Self: Sized {
         RewriteAndThen(self, other)
     }
@@ -83,6 +84,14 @@ pub enum TerminatorChange<'tcx> {
     None,
     /// Replace with another terminator
     Terminator(mir::Terminator<'tcx>),
+    /// Replace with an arbitrary graph
+    Graph {
+        /// Represents the entry point into the replacement graph
+        entry: mir::BasicBlock,
+        /// Represents the exit point from the replacement graph. This block must have a set
+        /// terminator.
+        exit: mir::BasicBlock
+    },
 }
 
 pub enum StatementChange<'tcx> {
@@ -92,6 +101,16 @@ pub enum StatementChange<'tcx> {
     Remove,
     /// Replace with another single statement
     Statement(mir::Statement<'tcx>),
+    /// Replace with a number of statements
+    Statements(Vec<mir::Statement<'tcx>>),
+    /// Replace with an arbitrary graph
+    Graph {
+        /// Represents the entry point into the replacement graph
+        entry: mir::BasicBlock,
+        /// Represents the exit point from the replacement graph. This block must *not* have a set
+        /// terminator.
+        exit: mir::BasicBlock
+    }
 }
 
 pub trait Transfer<'tcx> {
@@ -202,43 +221,6 @@ where T: Transfer<'tcx>,
     }, &mut queue, fs)
 }
 
-// /// The implementation of forward dataflow.
-// pub struct ForwardDataflow<F>(::std::marker::PhantomData<F>);
-//
-// impl<F> ForwardDataflow<F> {
-//     pub fn new() -> ForwardDataflow<F> {
-//         ForwardDataflow(::std::marker::PhantomData)
-//     }
-// }
-//
-// impl<F> Pass for ForwardDataflow<F> {}
-//
-// impl<'tcx, P> MirPass<'tcx> for ForwardDataflow<P>
-// where P: DataflowPass<'tcx> {
-//     fn run_pass<'a>(&mut self,
-//                    _: TyCtxt<'a, 'tcx, 'tcx>,
-//                    _: MirSource,
-//                    mir: &mut mir::Mir<'tcx>) {
-//         let facts: Facts<<P as DataflowPass<'tcx>>::Lattice> =
-//             Facts::new(<P as DataflowPass<'tcx>>::input_fact());
-//         let (new_cfg, _) = self.arf_body(&mir.cfg, facts, mir::START_BLOCK);
-//         mir.cfg = new_cfg;
-//     }
-// }
-//
-// impl<'tcx, P> ForwardDataflow<P>
-// where P: DataflowPass<'tcx> {
-//
-//
-// /// The implementation of backward dataflow.
-// pub struct BackwardDataflow<F>(::std::marker::PhantomData<F>);
-//
-// impl<F> BackwardDataflow<F> {
-//     pub fn new() -> BackwardDataflow<F> {
-//         BackwardDataflow(::std::marker::PhantomData)
-//     }
-// }
-//
 // impl<F> Pass for BackwardDataflow<F> {}
 //
 // impl<'tcx, P> MirPass<'tcx> for BackwardDataflow<P>
@@ -340,16 +322,21 @@ enum Direction {
 //    Backward
 }
 
-/// The fixpoint function is the engine of this whole thing. Important part of it is the `f: BF`
-/// callback. This for each basic block and its facts has to produce a replacement graph and a
-/// bunch of facts which are to be joined with the facts in the graph elsewhere.
+/// The fixpoint function is the engine of this whole thing.
+///
+/// The purpose of this function is to stop executing dataflow once the analysis converges to a
+/// fixed point.
+///
+/// The most important argument of these the `f: BF` callback. This callback will get called for
+/// each basic block and its associated facts. The function must then produce the replacement graph
+/// and a new factsets which are to be joined with the facts in the graph elsewhere. Once join
+/// operation produces no new facts (i.e. facts do not change anymore), the fixpoint loop
+/// terminates, thus completing the analysis.
 fn fixpoint<'tcx, F: Lattice, BF>(original_cfg: &CFG<'tcx>,
                                   direction: Direction,
                                   f: BF,
                                   to_visit: &mut BitVector,
                                   mut init_facts: Facts<F>) -> (CFG<'tcx>, Facts<F>)
-// FIXME: we probably want to pass in a list of basicblocks as successors (predecessors in
-// backward fixpoint) and let BF return just a list of F.
 where BF: Fn(BasicBlock, &F, &mut CFG<'tcx>) -> (bool, Vec<F>),
       // ^~ This function given a single block and fact before it optionally produces a replacement
       // graph (if not, the original block is the “replacement graph”) for the block and a
@@ -359,6 +346,9 @@ where BF: Fn(BasicBlock, &F, &mut CFG<'tcx>) -> (bool, Vec<F>),
       // Invariant:
       // * None of the already existing blocks in CFG may be modified;
 {
+// FIXME: we probably want to pass in a list of basicblocks as successors (predecessors in
+// backward fixpoint) and let BF return just a list of F.
+// FIXME: detect divergence somehow?
     let mut cfg = original_cfg.clone();
 
     while let Some(block) = to_visit.iter().next() {
