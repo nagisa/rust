@@ -9,9 +9,9 @@
 // except according to those terms.
 
 use mir::repr as mir;
-use mir::cfg::CFG;
 use mir::repr::{BasicBlock, START_BLOCK};
 use rustc_data_structures::bitvec::BitVector;
+use rustc_data_structures::indexed_vec::Idx;
 
 use mir::transform::lattice::Lattice;
 
@@ -26,7 +26,7 @@ pub trait Rewrite<'tcx, L: Lattice> {
     /// that is, given some fact `fact` true before both the statement and relacement graph, and
     /// a fact `fact2` which is true after the statement, the same `fact2` must be true after the
     /// replacement graph too.
-    fn stmt(&self, &mir::Statement<'tcx>, &L, &mut CFG<'tcx>) -> StatementChange<'tcx>;
+    fn stmt(&self, &mir::Statement<'tcx>, &L, &mut mir::Mir<'tcx>) -> StatementChange<'tcx>;
 
     /// The rewrite function which given a terminator optionally produces an alternative graph to
     /// be placed in place of the original statement.
@@ -38,7 +38,7 @@ pub trait Rewrite<'tcx, L: Lattice> {
     /// that is, given some fact `fact` true before both the terminator and relacement graph, and
     /// a fact `fact2` which is true after the statement, the same `fact2` must be true after the
     /// replacement graph too.
-    fn term(&self, &mir::Terminator<'tcx>, &L, &mut CFG<'tcx>) -> TerminatorChange<'tcx>;
+    fn term(&self, &mir::Terminator<'tcx>, &L, &mut mir::Mir<'tcx>) -> TerminatorChange<'tcx>;
 
     /// Combine two rewrites using RewriteAndThen combinator.
     fn and_then<R2>(self, other: R2) -> RewriteAndThen<Self, R2> where Self: Sized {
@@ -54,7 +54,7 @@ pub trait Rewrite<'tcx, L: Lattice> {
 pub struct RewriteAndThen<R1, R2>(R1, R2);
 impl<'tcx, L, R1, R2> Rewrite<'tcx, L> for RewriteAndThen<R1, R2>
 where L: Lattice, R1: Rewrite<'tcx, L>, R2: Rewrite<'tcx, L> {
-    fn stmt(&self, s: &mir::Statement<'tcx>, l: &L, c: &mut CFG<'tcx>) -> StatementChange<'tcx> {
+    fn stmt(&self, s: &mir::Statement<'tcx>, l: &L, c: &mut mir::Mir<'tcx>) -> StatementChange<'tcx> {
         let rs = self.0.stmt(s, l, c);
         match rs {
             StatementChange::None => self.1.stmt(s, l, c),
@@ -63,18 +63,20 @@ where L: Lattice, R1: Rewrite<'tcx, L>, R2: Rewrite<'tcx, L> {
                 match self.1.stmt(&ns, l, c) {
                     StatementChange::None => StatementChange::Statement(ns),
                     x => x
-                }
+                },
+            _ => unimplemented!()
         }
     }
 
-    fn term(&self, t: &mir::Terminator<'tcx>, l: &L, c: &mut CFG<'tcx>) -> TerminatorChange<'tcx> {
+    fn term(&self, t: &mir::Terminator<'tcx>, l: &L, c: &mut mir::Mir<'tcx>) -> TerminatorChange<'tcx> {
         let rt = self.0.term(t, l, c);
         match rt {
             TerminatorChange::None => self.1.term(t, l, c),
             TerminatorChange::Terminator(nt) => match self.1.term(&nt, l, c) {
                 TerminatorChange::None => TerminatorChange::Terminator(nt),
                 x => x
-            }
+            },
+            _ => unimplemented!()
         }
     }
 }
@@ -163,15 +165,15 @@ impl<F: Lattice> ::std::ops::IndexMut<BasicBlock> for Facts<F> {
 }
 
 /// Analyse and rewrite using dataflow in the forward direction
-pub fn ar_forward<'tcx, T, R>(cfg: &CFG<'tcx>, fs: Facts<T::Lattice>, transfer: T, rewrite: R)
--> (CFG<'tcx>, Facts<T::Lattice>)
+pub fn ar_forward<'tcx, T, R>(mir: &mir::Mir<'tcx>, fs: Facts<T::Lattice>, transfer: T, rewrite: R)
+-> (mir::Mir<'tcx>, Facts<T::Lattice>)
 where T: Transfer<'tcx>,
       R: Rewrite<'tcx, T::Lattice>
 {
-    let mut queue = BitVector::new(cfg.len());
+    let mut queue = BitVector::new(mir.len());
     queue.insert(START_BLOCK.index());
 
-    fixpoint(cfg, Direction::Forward, |bb, fact, cfg| {
+    fixpoint(mir, Direction::Forward, |bb, fact, cfg| {
         let mut fact = fact.clone();
         let mut changed = false;
         // Swap out the vector of old statements for a duration of statement inspection.
@@ -195,6 +197,7 @@ where T: Transfer<'tcx>,
                     fact = transfer.stmt(&new_stmt, fact);
                     statements[stmt_idx] = new_stmt;
                 }
+                _ => unimplemented!()
             }
             statements.swap(stmt_idx - num_removed, stmt_idx);
         }
@@ -214,6 +217,7 @@ where T: Transfer<'tcx>,
                 changed = true;
                 cfg[bb].terminator = Some(new_terminator);
             }
+            _ => unimplemented!()
         }
         let new_facts = transfer.term(cfg[bb].terminator(), fact);
 
@@ -332,12 +336,12 @@ enum Direction {
 /// and a new factsets which are to be joined with the facts in the graph elsewhere. Once join
 /// operation produces no new facts (i.e. facts do not change anymore), the fixpoint loop
 /// terminates, thus completing the analysis.
-fn fixpoint<'tcx, F: Lattice, BF>(original_cfg: &CFG<'tcx>,
+fn fixpoint<'tcx, F: Lattice, BF>(original_cfg: &mir::Mir<'tcx>,
                                   direction: Direction,
                                   f: BF,
                                   to_visit: &mut BitVector,
-                                  mut init_facts: Facts<F>) -> (CFG<'tcx>, Facts<F>)
-where BF: Fn(BasicBlock, &F, &mut CFG<'tcx>) -> (bool, Vec<F>),
+                                  mut init_facts: Facts<F>) -> (mir::Mir<'tcx>, Facts<F>)
+where BF: Fn(BasicBlock, &F, &mut mir::Mir<'tcx>) -> (bool, Vec<F>),
       // ^~ This function given a single block and fact before it optionally produces a replacement
       // graph (if not, the original block is the “replacement graph”) for the block and a
       // list of facts for arbitrary blocks (most likely for the blocks in the replacement graph

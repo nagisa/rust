@@ -38,7 +38,7 @@ use rustc::mir::transform::dataflow::*;
 use rustc::mir::transform::{Pass, MirPass, MirSource};
 use rustc::ty::TyCtxt;
 use rustc::middle::const_val::ConstVal;
-use pretty;
+// use pretty;
 
 #[derive(PartialEq, Debug, Eq, Clone)]
 enum Either<'tcx> {
@@ -77,13 +77,13 @@ impl Pass for AcsPropagate {}
 impl<'tcx> MirPass<'tcx> for AcsPropagate {
     fn run_pass<'a>(&mut self, tcx: TyCtxt<'a, 'tcx, 'tcx>, src: MirSource, mir: &mut Mir<'tcx>) {
         let ret = ar_forward(
-            &mut mir.cfg,
+            mir,
             Facts::new(),
             AcsPropagateTransfer,
             AliasRewrite.and_then(ConstRewrite).and_then(SimplifyRewrite)
         );
-        mir.cfg = ret.0;
-        pretty::dump_mir(tcx, "acs_propagate", &0, src, mir, None);
+        // mir.cfg = ret.0;
+        // pretty::dump_mir(tcx, "acs_propagate", &0, src, mir, None);
     }
 
 }
@@ -180,7 +180,7 @@ impl<'tcx> Transfer<'tcx> for AcsPropagateTransfer {
 struct AliasRewrite;
 
 impl<'tcx> Rewrite<'tcx, WBottom<AcsLattice<'tcx>>> for AliasRewrite {
-    fn stmt(&self, s: &Statement<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut CFG<'tcx>)
+    fn stmt(&self, s: &Statement<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut Mir<'tcx>)
     -> StatementChange<'tcx> {
         if let &WBottom::Value(ref lat) = l {
             let mut ns = s.clone();
@@ -193,7 +193,7 @@ impl<'tcx> Rewrite<'tcx, WBottom<AcsLattice<'tcx>>> for AliasRewrite {
         StatementChange::None
     }
 
-    fn term(&self, t: &Terminator<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut CFG<'tcx>)
+    fn term(&self, t: &Terminator<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut Mir<'tcx>)
     -> TerminatorChange<'tcx> {
         if let &WBottom::Value(ref lat) = l {
             let mut nt = t.clone();
@@ -226,7 +226,7 @@ impl<'a, 'tcx> MutVisitor<'tcx> for RewriteAliasVisitor<'a, 'tcx> {
 struct ConstRewrite;
 
 impl<'tcx> Rewrite<'tcx, WBottom<AcsLattice<'tcx>>> for ConstRewrite {
-    fn stmt(&self, s: &Statement<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut CFG<'tcx>)
+    fn stmt(&self, s: &Statement<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut Mir<'tcx>)
     -> StatementChange<'tcx> {
         if let &WBottom::Value(ref lat) = l {
             let mut ns = s.clone();
@@ -239,7 +239,7 @@ impl<'tcx> Rewrite<'tcx, WBottom<AcsLattice<'tcx>>> for ConstRewrite {
         StatementChange::None
     }
 
-    fn term(&self, t: &Terminator<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut CFG<'tcx>)
+    fn term(&self, t: &Terminator<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut Mir<'tcx>)
     -> TerminatorChange<'tcx> {
         if let &WBottom::Value(ref lat) = l {
             let mut nt = t.clone();
@@ -279,12 +279,12 @@ impl<'a, 'tcx> MutVisitor<'tcx> for RewriteConstVisitor<'a, 'tcx> {
 struct SimplifyRewrite;
 
 impl<'tcx, L: Lattice> Rewrite<'tcx, L> for SimplifyRewrite {
-    fn stmt(&self, _: &Statement<'tcx>, _: &L, _: &mut CFG<'tcx>)
+    fn stmt(&self, _: &Statement<'tcx>, _: &L, _: &mut Mir<'tcx>)
     -> StatementChange<'tcx> {
         StatementChange::None
     }
 
-    fn term(&self, t: &Terminator<'tcx>, _: &L, _: &mut CFG<'tcx>)
+    fn term(&self, t: &Terminator<'tcx>, _: &L, _: &mut Mir<'tcx>)
     -> TerminatorChange<'tcx> {
         match t.kind {
             TerminatorKind::If { ref targets, .. } if targets.0 == targets.1 => {

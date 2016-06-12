@@ -39,6 +39,7 @@
 #![feature(slice_patterns)]
 #![feature(staged_api)]
 #![feature(question_mark)]
+#![feature(inclusive_range_syntax)]
 #![cfg_attr(test, feature(test))]
 
 extern crate arena;
