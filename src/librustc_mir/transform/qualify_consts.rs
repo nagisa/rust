@@ -906,7 +906,9 @@ fn qualify_const_item_cached<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
 
 pub struct QualifyAndPromoteConstants;
 
-impl Pass for QualifyAndPromoteConstants {}
+impl Pass for QualifyAndPromoteConstants {
+    fn name(&self) -> &'static str { "QualifyConstants" }
+}
 
 impl<'tcx> MirMapPass<'tcx> for QualifyAndPromoteConstants {
     fn run_pass<'a>(&mut self,

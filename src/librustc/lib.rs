@@ -28,7 +28,6 @@
 #![feature(box_syntax)]
 #![feature(collections)]
 #![feature(const_fn)]
-#![feature(core_intrinsics)]
 #![feature(enumset)]
 #![feature(iter_arith)]
 #![feature(libc)]

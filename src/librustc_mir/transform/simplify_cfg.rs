@@ -58,6 +58,7 @@ impl<'l, 'tcx> MirPass<'tcx> for SimplifyCfg<'l> {
 }
 
 impl<'l> Pass for SimplifyCfg<'l> {
+    fn name(&self) -> &'static str { "SimplifyCfg" }
     fn disambiguator<'a>(&'a self) -> Option<Box<fmt::Display+'a>> {
         Some(Box::new(self.label))
     }

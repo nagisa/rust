@@ -714,6 +714,7 @@ impl<'tcx> MirPass<'tcx> for TypeckMir {
 }
 
 impl Pass for TypeckMir {
+    fn name(&self) -> &'static str { "TypeckMir" }
     fn dep_node(&self, def_id: DefId) -> DepNode<DefId> {
         DepNode::MirTypeck(def_id)
     }

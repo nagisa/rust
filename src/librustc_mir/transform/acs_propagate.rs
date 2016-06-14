@@ -72,7 +72,9 @@ impl<'tcx> Lattice for AcsLattice<'tcx> {
 
 pub struct AcsPropagate;
 
-impl Pass for AcsPropagate {}
+impl Pass for AcsPropagate {
+    fn name(&self) -> &'static str { "AcsPropagate" }
+}
 
 impl<'tcx> MirPass<'tcx> for AcsPropagate {
     fn run_pass<'a>(&mut self, tcx: TyCtxt<'a, 'tcx, 'tcx>, src: MirSource, mir: &mut Mir<'tcx>) {
