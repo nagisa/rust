@@ -17,16 +17,16 @@ use rustc::mir::repr::*;
 use rustc::mir::transform::{Pass, MirPass, MirPassHook, MirSource};
 use pretty;
 
-pub struct Marker<'a>(pub &'a str);
+pub struct Marker(pub &'static str);
 
-impl<'b, 'tcx> MirPass<'tcx> for Marker<'b> {
+impl<'b, 'tcx> MirPass<'tcx> for Marker {
     fn run_pass<'a>(&mut self, _tcx: TyCtxt<'a, 'tcx, 'tcx>,
                     _src: MirSource, _mir: &mut Mir<'tcx>)
     {}
 }
 
-impl<'b> Pass for Marker<'b> {
-    fn name(&self) -> &str { self.0 }
+impl Pass for Marker {
+    fn name(&self) -> &'static str { self.0 }
 }
 
 pub struct Disambiguator<'a> {
