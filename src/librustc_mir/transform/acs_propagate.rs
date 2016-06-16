@@ -25,20 +25,18 @@
 //!
 //! For all of them we will be using a lattice of `WBottom<Hashmap<Lvalue, Either<Lvalue,
 //! Constant>>>`.
-//
 // My personal belief is that it should be possible to make a way to compose values of two hashmap
 // lattices into one, but I can’t seem to get it just right yet, so we do the composing and
 // decomposing manually here.
 
 use rustc_data_structures::fnv::FnvHashMap;
-use rustc::mir::repr::*;
-use rustc::mir::visit::{MutVisitor, LvalueContext};
-use rustc::mir::transform::lattice::{Lattice, WBottom};
-use rustc::mir::transform::dataflow::*;
-use rustc::mir::transform::{Pass, MirPass, MirSource};
-use rustc::ty::TyCtxt;
 use rustc::middle::const_val::ConstVal;
-// use pretty;
+use rustc::mir::repr::*;
+use rustc::mir::transform::dataflow::*;
+use rustc::mir::transform::lattice::{Lattice, WBottom};
+use rustc::mir::transform::{Pass, MirPass, MirSource};
+use rustc::mir::visit::{MutVisitor, LvalueContext};
+use rustc::ty::TyCtxt;
 
 #[derive(PartialEq, Debug, Eq, Clone)]
 enum Either<'tcx> {
@@ -77,27 +75,16 @@ impl Pass for AcsPropagate {
 }
 
 impl<'tcx> MirPass<'tcx> for AcsPropagate {
-    fn run_pass<'a>(&mut self, tcx: TyCtxt<'a, 'tcx, 'tcx>, src: MirSource, mir: &mut Mir<'tcx>) {
-        let ret = ar_forward(
+    fn run_pass<'a>(&mut self, _: TyCtxt<'a, 'tcx, 'tcx>, _: MirSource, mir: &mut Mir<'tcx>) {
+        analyse_rewrite_forward(
             mir,
             Facts::new(),
-            AcsPropagateTransfer,
-            AliasRewrite.and_then(ConstRewrite).and_then(SimplifyRewrite)
+            &AliasRewrite.and_then(ConstRewrite).and_then(SimplifyRewrite)
         );
-        // mir.cfg = ret.0;
-        // pretty::dump_mir(tcx, "acs_propagate", &0, src, mir, None);
     }
-
 }
 
 struct AcsPropagateTransfer;
-
-fn base_lvalue<'a, 'tcx>(mut lval: &'a Lvalue<'tcx>) -> &'a Lvalue<'tcx> {
-    while let &Lvalue::Projection(ref proj) = lval {
-        lval = &proj.base;
-    }
-    lval
-}
 
 fn invalidate<'tcx>(map: &mut FnvHashMap<Lvalue<'tcx>, Either<'tcx>>, lval: &Lvalue<'tcx>) {
     map.remove(lval);
@@ -127,14 +114,15 @@ fn invalidate<'tcx>(map: &mut FnvHashMap<Lvalue<'tcx>, Either<'tcx>>, lval: &Lva
 impl<'tcx> Transfer<'tcx> for AcsPropagateTransfer {
     type Lattice = WBottom<AcsLattice<'tcx>>;
 
-    fn stmt(&self, s: &Statement<'tcx>, lat: WBottom<AcsLattice<'tcx>>) -> WBottom<AcsLattice<'tcx>> {
+    fn stmt(s: &Statement<'tcx>, lat: WBottom<AcsLattice<'tcx>>)
+    -> WBottom<AcsLattice<'tcx>> {
         let mut lat_map = match lat {
             WBottom::Bottom => FnvHashMap::default(),
             WBottom::Value(lat) => lat.known_values
         };
 
         let StatementKind::Assign(ref lval, ref rval) = s.kind;
-        invalidate(&mut lat_map, base_lvalue(lval));
+        invalidate(&mut lat_map, lval.base());
 
         if let &Lvalue::Projection(_) = lval {
             return WBottom::Value(AcsLattice {
@@ -157,7 +145,8 @@ impl<'tcx> Transfer<'tcx> for AcsPropagateTransfer {
         })
     }
 
-    fn term(&self, t: &Terminator<'tcx>, mut lat: WBottom<AcsLattice<'tcx>>) -> Vec<WBottom<AcsLattice<'tcx>>> {
+    fn term(t: &Terminator<'tcx>, mut lat: WBottom<AcsLattice<'tcx>>)
+    -> Vec<WBottom<AcsLattice<'tcx>>> {
         match t.kind {
             TerminatorKind::Call { .. } |
             TerminatorKind::Drop { .. } |
@@ -181,9 +170,10 @@ impl<'tcx> Transfer<'tcx> for AcsPropagateTransfer {
 
 struct AliasRewrite;
 
-impl<'tcx> Rewrite<'tcx, WBottom<AcsLattice<'tcx>>> for AliasRewrite {
+impl<'tcx> Rewrite<'tcx, AcsPropagateTransfer> for AliasRewrite {
     fn stmt(&self, s: &Statement<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut Mir<'tcx>)
-    -> StatementChange<'tcx> {
+    -> StatementChange<'tcx>
+    {
         if let &WBottom::Value(ref lat) = l {
             let mut ns = s.clone();
             let mut vis = RewriteAliasVisitor(&lat.known_values, false);
@@ -196,7 +186,8 @@ impl<'tcx> Rewrite<'tcx, WBottom<AcsLattice<'tcx>>> for AliasRewrite {
     }
 
     fn term(&self, t: &Terminator<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut Mir<'tcx>)
-    -> TerminatorChange<'tcx> {
+    -> TerminatorChange<'tcx>
+    {
         if let &WBottom::Value(ref lat) = l {
             let mut nt = t.clone();
             let mut vis = RewriteAliasVisitor(&lat.known_values, false);
@@ -227,7 +218,7 @@ impl<'a, 'tcx> MutVisitor<'tcx> for RewriteAliasVisitor<'a, 'tcx> {
 
 struct ConstRewrite;
 
-impl<'tcx> Rewrite<'tcx, WBottom<AcsLattice<'tcx>>> for ConstRewrite {
+impl<'tcx> Rewrite<'tcx, AcsPropagateTransfer> for ConstRewrite {
     fn stmt(&self, s: &Statement<'tcx>, l: &WBottom<AcsLattice<'tcx>>, _: &mut Mir<'tcx>)
     -> StatementChange<'tcx> {
         if let &WBottom::Value(ref lat) = l {
@@ -280,13 +271,13 @@ impl<'a, 'tcx> MutVisitor<'tcx> for RewriteConstVisitor<'a, 'tcx> {
 
 struct SimplifyRewrite;
 
-impl<'tcx, L: Lattice> Rewrite<'tcx, L> for SimplifyRewrite {
-    fn stmt(&self, _: &Statement<'tcx>, _: &L, _: &mut Mir<'tcx>)
+impl<'tcx, T: Transfer<'tcx>> Rewrite<'tcx, T> for SimplifyRewrite {
+    fn stmt(&self, _: &Statement<'tcx>, _: &T::Lattice, _: &mut Mir<'tcx>)
     -> StatementChange<'tcx> {
         StatementChange::None
     }
 
-    fn term(&self, t: &Terminator<'tcx>, _: &L, _: &mut Mir<'tcx>)
+    fn term(&self, t: &Terminator<'tcx>, _: &T::Lattice, _: &mut Mir<'tcx>)
     -> TerminatorChange<'tcx> {
         match t.kind {
             TerminatorKind::If { ref targets, .. } if targets.0 == targets.1 => {
