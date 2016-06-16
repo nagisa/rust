@@ -31,7 +31,6 @@
 //! rather than `()`, but the MIR we naively generate still contains
 //! the `_a = ()` write in the unreachable block "after" the return.
 
-
 use rustc_data_structures::bitvec::BitVector;
 use rustc_data_structures::indexed_vec::{Idx, IndexVec};
 use rustc::ty::TyCtxt;

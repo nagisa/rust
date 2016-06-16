@@ -86,6 +86,16 @@ pub enum WBottom<T> {
     Value(T)
 }
 
+impl<T> WBottom<T> {
+    #[inline]
+    pub fn unwrap_or_else<F: FnOnce() -> T>(self, f: F) -> T {
+        match self {
+            WBottom::Bottom => f(),
+            WBottom::Value(v) => v
+        }
+    }
+}
+
 impl<T: Lattice> Lattice for WBottom<T> {
     fn bottom() -> Self {
         WBottom::Bottom

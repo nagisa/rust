@@ -731,7 +731,7 @@ macro_rules! make_mir_visitor {
 make_mir_visitor!(Visitor,);
 make_mir_visitor!(MutVisitor,mut);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, PartialEq, Clone, Debug)]
 pub enum LvalueContext {
     // Appears as LHS of an assignment
     Store,
