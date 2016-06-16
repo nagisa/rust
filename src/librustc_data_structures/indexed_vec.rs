@@ -135,6 +135,31 @@ impl<I: Idx, T> IndexVec<I, T> {
     pub fn last(&self) -> Option<I> {
         self.len().checked_sub(1).map(I::new)
     }
+
+    #[inline]
+    pub fn swap(&mut self, i1: I, i2: I){
+        self.raw.swap(i1.index(), i2.index())
+    }
+
+    pub fn retain_index<F>(&mut self, mut f: F)
+        where F: FnMut(I) -> bool
+    {
+        let len = self.raw.len();
+        let mut del = 0;
+        {
+            let v = &mut *self.raw;
+            for i in 0..len {
+                if !f(I::new(i)) {
+                    del += 1;
+                } else if del > 0 {
+                    v.swap(i - del, i);
+                }
+            }
+        }
+        if del > 0 {
+            self.raw.truncate(len - del);
+        }
+    }
 }
 
 impl<I: Idx, T> Index<I> for IndexVec<I, T> {

@@ -24,7 +24,7 @@ impl BitVector {
 
     pub fn contains(&self, bit: usize) -> bool {
         let (word, mask) = word_mask(bit);
-        (self.data[word] & mask) != 0
+        (self.data.get(word).cloned().unwrap_or(0) & mask) != 0
     }
 
     /// Returns true if the bit has changed.
@@ -38,16 +38,26 @@ impl BitVector {
     }
 
     pub fn insert_all(&mut self, all: &BitVector) -> bool {
-        assert!(self.data.len() == all.data.len());
+        assert!(self.data.len() >= all.data.len());
         let mut changed = false;
-        for (i, j) in self.data.iter_mut().zip(&all.data) {
-            let value = *i;
-            *i = value | *j;
-            if value != *i {
-                changed = true;
-            }
+        for (i, &j) in self.data.iter_mut().zip(all.data.iter()) {
+            let new_value = *i | j;
+            changed = changed || *i != new_value;
+            *i = new_value;
         }
         changed
+    }
+
+    /// Return and unset first bit set.
+    pub fn pop(&mut self) -> Option<usize> {
+        for (idx, el) in self.data.iter_mut().enumerate() {
+            if *el != 0 {
+                let bit = el.trailing_zeros() as usize;
+                *el &= !word_mask(bit).1;
+                return Some(idx * 64 + bit);
+            }
+        }
+        None
     }
 
     /// Returns true if the bit has changed.
@@ -72,6 +82,10 @@ impl BitVector {
         if self.data.len() < num_words {
             self.data.resize(num_words, 0)
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len() * 64
     }
 
     /// Iterates over indexes of set bits in a sorted order
@@ -278,6 +292,23 @@ fn bitvec_iter_works_3() {
     bitvec.insert(255);
     bitvec.insert(319);
     assert_eq!(bitvec.iter().collect::<Vec<_>>(), [0, 127, 191, 255, 319]);
+}
+
+#[test]
+fn bitvec_pop() {
+    let mut bitvec = BitVector::new(100);
+    bitvec.insert(1);
+    bitvec.insert(10);
+    bitvec.insert(19);
+    bitvec.insert(62);
+    bitvec.insert(63);
+    bitvec.insert(64);
+    bitvec.insert(65);
+    bitvec.insert(66);
+    bitvec.insert(99);
+    let idxs = vec![];
+    while let Some(idx) = bitvec.pop() { idxs.push(idx); }
+    assert_eq!(idxs, [1, 10, 19, 62, 63, 64, 65, 66, 99]);
 }
 
 #[test]
