@@ -318,6 +318,9 @@ declare_features! (
 
     // Allow safe suggestions for potential type conversions.
     (active, safe_suggestion, "1.0.0", Some(37384)),
+
+    // The `i128` type
+    (active, i128_type, "1.15.0", Some(35118)),
 );
 
 declare_features! (
@@ -1199,6 +1202,18 @@ impl<'a> Visitor<'a> for PostExpansionVisitor<'a> {
             ast::ExprKind::Break(_, Some(_)) => {
                 gate_feature_post!(&self, loop_break_value, e.span,
                                    "`break` with a value is experimental");
+            }
+            ast::ExprKind::Lit(ref lit) => {
+                if let ast::LitKind::Int(_, ref ty) = lit.node {
+                    match *ty {
+                        ast::LitIntType::Signed(ast::IntTy::I128) |
+                        ast::LitIntType::Unsigned(ast::UintTy::U128) => {
+                            gate_feature_post!(&self, i128_type, e.span,
+                                               "128-bit integers are not stable");
+                        }
+                        _ => {}
+                    }
+                }
             }
             _ => {}
         }
