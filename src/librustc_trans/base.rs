@@ -745,6 +745,7 @@ pub fn llty_and_min_for_signed_ty<'blk, 'tcx>(cx: Block<'blk, 'tcx>,
                 ast::IntTy::I16 => i16::MIN as u64,
                 ast::IntTy::I32 => i32::MIN as u64,
                 ast::IntTy::I64 => i64::MIN as u64,
+                ast::IntTy::I128 => bug!("who asks?!"),
             };
             (llty, min)
         }

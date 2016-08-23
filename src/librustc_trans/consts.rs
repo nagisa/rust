@@ -25,7 +25,7 @@ use trans_item::TransItem;
 use common::{type_is_sized, C_nil, const_get_elt};
 use common::{CrateContext, C_integral, C_floating, C_bool, C_str_slice, C_bytes, val_ty};
 use common::{C_struct, C_undef, const_to_opt_int, const_to_opt_uint, VariantInfo, C_uint};
-use common::{type_is_fat_ptr, Field, C_vector, C_array, C_null};
+use common::{type_is_fat_ptr, Field, C_vector, C_array, C_null, C_big_integral};
 use datum::{Datum, Lvalue};
 use declare;
 use monomorphize::{self, Instance};
@@ -40,6 +40,7 @@ use rustc::ty::{self, Ty, TyCtxt};
 use rustc::ty::cast::{CastTy,IntTy};
 use util::nodemap::NodeMap;
 use rustc_const_math::{ConstInt, ConstUsize, ConstIsize};
+use rustc_i128::{i128, u128};
 
 use rustc::hir;
 
@@ -61,10 +62,11 @@ pub fn const_lit(cx: &CrateContext, e: &hir::Expr, lit: &ast::Lit)
         LitKind::Byte(b) => C_integral(Type::uint_from_ty(cx, ast::UintTy::U8), b as u64, false),
         LitKind::Char(i) => C_integral(Type::char(cx), i as u64, false),
         LitKind::Int(i, ast::LitIntType::Signed(t)) => {
-            C_integral(Type::int_from_ty(cx, t), i, true)
+            // FIXME: handle i128?
+            C_integral(Type::int_from_ty(cx, t), i as u64, true)
         }
         LitKind::Int(u, ast::LitIntType::Unsigned(t)) => {
-            C_integral(Type::uint_from_ty(cx, t), u, false)
+            C_big_integral(Type::uint_from_ty(cx, t), u)
         }
         LitKind::Int(i, ast::LitIntType::Unsuffixed) => {
             let lit_int_ty = cx.tcx().node_id_to_type(e.id);
@@ -472,6 +474,7 @@ fn check_unary_expr_validity(cx: &CrateContext, e: &hir::Expr, t: Ty,
 
 pub fn to_const_int(value: ValueRef, t: Ty, tcx: TyCtxt) -> Option<ConstInt> {
     match t.sty {
+        // FIXME: input should be i128… but its old trans anway, eh.
         ty::TyInt(int_type) => const_to_opt_int(value).and_then(|input| match int_type {
             ast::IntTy::I8 => {
                 assert_eq!(input as i8 as i64, input);
@@ -486,13 +489,17 @@ pub fn to_const_int(value: ValueRef, t: Ty, tcx: TyCtxt) -> Option<ConstInt> {
                 Some(ConstInt::I32(input as i32))
             },
             ast::IntTy::I64 => {
-                Some(ConstInt::I64(input))
+                Some(ConstInt::I64(input as i64))
+            },
+            ast::IntTy::I128 => {
+                Some(ConstInt::I128(input as i128))
             },
             ast::IntTy::Is => {
                 ConstIsize::new(input, tcx.sess.target.int_type)
                     .ok().map(ConstInt::Isize)
             },
         }),
+        // see comments for int above
         ty::TyUint(uint_type) => const_to_opt_uint(value).and_then(|input| match uint_type {
             ast::UintTy::U8 => {
                 assert_eq!(input as u8 as u64, input);
@@ -507,7 +514,10 @@ pub fn to_const_int(value: ValueRef, t: Ty, tcx: TyCtxt) -> Option<ConstInt> {
                 Some(ConstInt::U32(input as u32))
             },
             ast::UintTy::U64 => {
-                Some(ConstInt::U64(input))
+                Some(ConstInt::U64(input as u64))
+            },
+            ast::UintTy::U128 => {
+                Some(ConstInt::U128(input as u128))
             },
             ast::UintTy::Us => {
                 ConstUsize::new(input, tcx.sess.target.uint_type)
