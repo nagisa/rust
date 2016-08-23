@@ -92,6 +92,7 @@
 #![feature(staged_api)]
 #![feature(unboxed_closures)]
 #![feature(question_mark)]
+#![feature(i128_type)]
 
 // NOTE: remove the cfg_attr next snapshot
 #![cfg_attr(not(stage0), feature(never_type))]
