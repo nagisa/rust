@@ -163,6 +163,12 @@ pub fn check_crate<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) {
     tcx.sess.abort_if_errors();
 }
 
+macro_rules! struct_span_E0004 {
+    ($sess: expr, $sp: expr, $($stuff:tt),*) => {
+        struct_span_err!($sess, $sp, E0004, $($stuff),)
+    }
+}
+
 fn check_expr(cx: &mut MatchCheckCtxt, ex: &hir::Expr) {
     intravisit::walk_expr(cx, ex);
     match ex.node {
@@ -215,7 +221,7 @@ fn check_expr(cx: &mut MatchCheckCtxt, ex: &hir::Expr) {
             if inlined_arms.is_empty() {
                 if !pat_ty.is_uninhabited(cx.tcx) {
                     // We know the type is inhabited, so this must be wrong
-                    let mut err = struct_span_err!(cx.tcx.sess, ex.span, E0002,
+                    let mut err = struct_span_E0004!(cx.tcx.sess, ex.span,
                                                    "non-exhaustive patterns: type {} is non-empty",
                                                    pat_ty);
                     span_help!(&mut err, ex.span,
@@ -438,7 +444,7 @@ fn check_exhaustive<'a, 'tcx>(cx: &MatchCheckCtxt<'a, 'tcx>,
                         1 => format!("pattern {} not covered", joined_patterns),
                         _ => format!("patterns {} not covered", joined_patterns)
                     };
-                    struct_span_err!(cx.tcx.sess, sp, E0004,
+                    struct_span_E0004!(cx.tcx.sess, sp,
                         "non-exhaustive patterns: {} not covered",
                         joined_patterns
                     ).span_label(sp, &label_text).emit();
