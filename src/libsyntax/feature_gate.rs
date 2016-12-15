@@ -320,7 +320,7 @@ declare_features! (
     (active, safe_suggestion, "1.0.0", Some(37384)),
 
     // The `i128` type
-    (active, i128_type, "1.15.0", Some(35118)),
+    (active, i128_type, "1.16.0", Some(35118)),
 );
 
 declare_features! (
