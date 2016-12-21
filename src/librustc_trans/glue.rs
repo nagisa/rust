@@ -230,7 +230,7 @@ pub fn implement_drop_glue<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>, g: DropGlueKi
 
                 // `Box<ZeroSizeType>` does not allocate.
                 let needs_free = bcx.icmp(llvm::IntNE, llsize, C_uint(bcx.ccx, 0u64));
-                if const_to_opt_u128(needs_free) == Some(0) {
+                if const_to_opt_u128(needs_free, false) == Some(0) {
                     bcx
                 } else {
                     let next_cx = bcx.fcx().build_new_block("next");
