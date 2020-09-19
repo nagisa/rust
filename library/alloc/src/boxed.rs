@@ -145,6 +145,7 @@ use core::ops::{
 use core::pin::Pin;
 use core::ptr::{self, Unique};
 use core::task::{Context, Poll};
+use core::error::Error;
 
 use crate::alloc::{self, AllocRef, Global};
 use crate::borrow::Cow;
@@ -1147,5 +1148,62 @@ impl<F: ?Sized + Future + Unpin> Future for Box<F> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         F::poll(Pin::new(&mut *self), cx)
+    }
+}
+
+// NB: these fail coherence check with
+//
+// error[E0119]: conflicting implementations of trait `core::convert::From<&str>` for type
+// `boxed::Box<dyn core::error::Error + core::marker::Send + core::marker::Sync>`:
+//     --> library/alloc/src/errors.rs:66:1
+//      |
+// 66   | impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 'a> {
+//      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementatio
+// n for `boxed::Box<dyn core::error::Error + core::marker::Send + core::marker::Sync>`
+//      |
+//     ::: library/alloc/src/boxed.rs:1155:1
+//      |
+// 1155 | impl<'a> From<&str> for Box<dyn Error + Send + Sync + 'a> {
+//      | --------------------------------------------------------- first implementation here
+//      |
+//      = note: upstream crates may add a new impl of trait `core::error::Error` for type `&str` in future versions
+//
+#[stable(feature = "rust1", since = "1.0.0")]
+impl<'a> From<&str> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a [`str`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::error::Error;
+    /// use std::mem;
+    ///
+    /// let a_str_error = "a str error";
+    /// let a_boxed_error = Box::<dyn Error + Send + Sync>::from(a_str_error);
+    /// assert!(
+    ///     mem::size_of::<Box<dyn Error + Send + Sync>>() == mem::size_of_val(&a_boxed_error))
+    /// ```
+    #[inline]
+    fn from(err: &str) -> Box<dyn Error + Send + Sync + 'a> {
+        From::from(err.to_owned())
+    }
+}
+
+#[stable(feature = "string_box_error", since = "1.6.0")]
+impl From<&str> for Box<dyn Error> {
+    /// Converts a [`str`] into a box of dyn [`Error`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::error::Error;
+    /// use std::mem;
+    ///
+    /// let a_str_error = "a str error";
+    /// let a_boxed_error = Box::<dyn Error>::from(a_str_error);
+    /// assert!(mem::size_of::<Box<dyn Error>>() == mem::size_of_val(&a_boxed_error))
+    /// ```
+    fn from(err: &str) -> Box<dyn Error> {
+        From::from(err.to_owned())
     }
 }

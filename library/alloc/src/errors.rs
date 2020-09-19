@@ -205,47 +205,6 @@ impl From<String> for Box<dyn Error> {
     }
 }
 
-// #[stable(feature = "rust1", since = "1.0.0")]
-// impl<'a> From<&str> for Box<dyn Error + Send + Sync + 'a> {
-//     /// Converts a [`str`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
-//     ///
-//     /// # Examples
-//     ///
-//     /// ```
-//     /// use std::error::Error;
-//     /// use std::mem;
-//     ///
-//     /// let a_str_error = "a str error";
-//     /// let a_boxed_error = Box::<dyn Error + Send + Sync>::from(a_str_error);
-//     /// assert!(
-//     ///     mem::size_of::<Box<dyn Error + Send + Sync>>() == mem::size_of_val(&a_boxed_error))
-//     /// ```
-//     #[inline]
-//     fn from(err: &str) -> Box<dyn Error + Send + Sync + 'a> {
-//         From::from(String::from(err))
-//     }
-// }
-//
-// #[stable(feature = "string_box_error", since = "1.6.0")]
-// impl From<&str> for Box<dyn Error> {
-//     /// Converts a [`str`] into a box of dyn [`Error`].
-//     ///
-//     /// # Examples
-//     ///
-//     /// ```
-//     /// use std::error::Error;
-//     /// use std::mem;
-//     ///
-//     /// let a_str_error = "a str error";
-//     /// let a_boxed_error = Box::<dyn Error>::from(a_str_error);
-//     /// assert!(mem::size_of::<Box<dyn Error>>() == mem::size_of_val(&a_boxed_error))
-//     /// ```
-//     fn from(err: &str) -> Box<dyn Error> {
-//         From::from(String::from(err))
-//     }
-// }
-
-// TODO: move to where Box is defn'd
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
     /// Converts a type of [`Error`] into a box of dyn [`Error`].
@@ -279,10 +238,10 @@ impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
 }
 
 #[unstable(feature = "try_reserve", reason = "new API", issue = "48043")]
-impl Error for alloc::collections::TryReserveError {}
+impl Error for crate::collections::TryReserveError {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl Error for string::FromUtf8Error {
+impl Error for crate::string::FromUtf8Error {
     #[allow(deprecated)]
     fn description(&self) -> &str {
         "invalid utf-8"
@@ -290,7 +249,7 @@ impl Error for string::FromUtf8Error {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl Error for string::FromUtf16Error {
+impl Error for crate::string::FromUtf16Error {
     #[allow(deprecated)]
     fn description(&self) -> &str {
         "invalid utf-16"
