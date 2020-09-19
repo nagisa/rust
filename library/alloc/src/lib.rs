@@ -181,6 +181,8 @@ pub mod task;
 mod tests;
 pub mod vec;
 
+mod errors;
+
 #[cfg(not(test))]
 mod std {
     pub use core::ops; // RangeFull

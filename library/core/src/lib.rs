@@ -215,6 +215,8 @@ pub mod intrinsics;
 pub mod mem;
 pub mod ptr;
 
+pub mod error;
+
 /* Core language traits */
 
 pub mod borrow;
