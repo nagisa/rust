@@ -21,6 +21,13 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
             ..
         } = block.terminator().kind
         {
+            // if the block is on an unwind path, do not
+            // apply the optimization as unwind paths
+            // rely on a unique parent invariant
+            if block.is_cleanup {
+                continue 'block_iter;
+            }
+
             info!("found one, switch on {:?}", switch_place);
             // if the block has fewer than 2 predecessors, ignore it
             // we could maybe chain blocks that have exactly one
@@ -37,6 +44,8 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
                 info!("very promising, thought {:?}", switch_place);
                 // we now have an input place for which it would
                 // be interesting if predecessors assigned it from a const
+
+                let mut predecessors_left = predecessors[block_id].len();
                 'predec_iter: for predecessor_id in predecessors[block_id].iter().copied() {
                     if let Some(predecessor) = body.basic_blocks().get(predecessor_id) {
                         // first we make sure the predecessor jumps
@@ -74,6 +83,12 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
                         if is_likely_const(switch_place, predecessor) {
                             info!("yep, found {:?} to {:?}", predecessor_id, block_id);
                             new_edges.push((predecessor_id, block_id));
+
+                            predecessors_left -= 1;
+                            if predecessors_left < 2 {
+                                // there is no point in duplicating anymore
+                                break 'predec_iter;
+                            }
                         }
                     }
                 }
