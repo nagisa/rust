@@ -4,13 +4,10 @@ use std::ops::ControlFlow;
 
 // EMIT_MIR separate_const_switch.too_complex.SeparateConstSwitch.diff
 fn too_complex<T, E>(x: Result<T, E>) -> Option<T> {
-    // we want this construction to be reduced to
-    // a single, direct match. to do so, we want
-    // to have a pass that will copy the second
-    // switch to a separate block. this new block
-    // will only be targetted by blocks that fill
-    // the condition with a const, so a later
-    // pass can optimize it away.
+    // The pass should break the outer match into
+    // two blocks that only have one parent each.
+    // Parents are one of the two branches of the first
+    // match, so a later pass can propagate constants.
     match { 
         match x {
             Ok(v) => ControlFlow::Continue(v),
