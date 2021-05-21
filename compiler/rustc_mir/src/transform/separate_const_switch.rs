@@ -42,66 +42,35 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
                         // first we make sure the predecessor jumps
                         // in a reasonable way
                         match &predecessor.terminator().kind {
-                        // the following terminators are
-                        // unconditionally valid
-                        TerminatorKind::Goto { .. } | TerminatorKind::SwitchInt { .. } => {}
+                            // the following terminators are
+                            // unconditionally valid
+                            TerminatorKind::Goto { .. } | TerminatorKind::SwitchInt { .. } => {}
 
-                        // the following terminators could
-                        // maybe be allowed, but they are
-                        // not supported yet
-                        TerminatorKind::Yield {..}
-
-                        // the following terminators are not allowed
-                        | TerminatorKind::Resume
-                        | TerminatorKind::Abort
-                        | TerminatorKind::Return
-                        | TerminatorKind::Unreachable 
-                        | TerminatorKind::InlineAsm { .. }
-                        | TerminatorKind::GeneratorDrop => {
-                            continue 'predec_iter;
-                        }
-
-                        TerminatorKind::Drop { place, target, .. } => {
-                            if *place == switch_place || *target != block_id {
-                                continue 'predec_iter;
-                            }
-                        }
-
-                        TerminatorKind::DropAndReplace { place, value, target, .. } => {
-                            if *target != block_id {
-                                continue 'predec_iter;
-                            }
-                            if *place == switch_place {
-                                if let Operand::Constant(_) = value {
-                                    new_edges.push((predecessor_id, block_id));
-                                }
-                                continue 'predec_iter;
-                            }
-                        }
-
-                        TerminatorKind::Call { destination, .. } => {
-                            if let Some((place, target)) = destination {
-                                if *place == switch_place || *target != block_id {
+                            TerminatorKind::FalseEdge { real_target, .. } 
+                            => {
+                                if *real_target != block_id {
                                     continue 'predec_iter;
                                 }
                             }
-                        }
 
-                        TerminatorKind::Assert { target, .. } => {
-                            if *target != block_id {
+                            // the following terminators are not allowed
+                            TerminatorKind::Resume
+                            | TerminatorKind::Drop { .. }
+                            | TerminatorKind::DropAndReplace { .. }
+                            | TerminatorKind::Call { .. }
+                            | TerminatorKind::Assert { .. }
+                            | TerminatorKind::FalseUnwind { .. }
+                            | TerminatorKind::Yield { .. }
+                            | TerminatorKind::Abort
+                            | TerminatorKind::Return
+                            | TerminatorKind::Unreachable 
+                            | TerminatorKind::InlineAsm { .. }
+                            | TerminatorKind::GeneratorDrop => {
                                 continue 'predec_iter;
                             }
                         }
 
-                        TerminatorKind::FalseEdge { real_target, .. } 
-                        | TerminatorKind::FalseUnwind { real_target, .. }
-                        => {
-                            if *real_target != block_id {
-                                continue 'predec_iter;
-                            }
-                        }
-                    }
-                    info!("super promising! final place: {:?}", switch_place);
+                        info!("super promising! final place: {:?}", switch_place);
                         if is_likely_const(switch_place, predecessor) {
                             info!("yep, found {:?} to {:?}", predecessor_id, block_id);
                             new_edges.push((predecessor_id, block_id));
@@ -120,49 +89,30 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
         if let Some(new_block) = blocks.get(target_id).cloned() {
             let new_block_id = blocks.push(new_block);
             if let Some(terminator) = blocks.get_mut(pred_id).map(|x| x.terminator_mut()) {
+                let original = terminator.clone();
                 match terminator.kind {
                     TerminatorKind::Goto { ref mut target } => {
                         if *target == target_id {
-                            *target = new_block_id
+                            *target = new_block_id;
+                        } else {
+                            info!("goto invalid case, wanted {:?} found {:?}", target_id, target);
                         }
                     }
                     TerminatorKind::SwitchInt { ref mut targets, .. } => {
+                        //*targets = targets.clone();
                         targets.all_targets_mut().iter_mut().for_each(|x| {
                             if *x == target_id {
-                                *x = new_block_id
+                                *x = new_block_id;
+                            } else {
+                                info!("switch invalid case, wanted {:?} found {:?}", target_id, x);
                             }
                         });
                     }
                     TerminatorKind::FalseEdge { ref mut real_target, .. } => {
                         if *real_target == target_id {
-                            *real_target = new_block_id
-                        }
-                    }
-                    TerminatorKind::Call { ref mut destination, .. } => {
-                        if let Some((_, target)) = destination {
-                            if *target == target_id {
-                                *target = new_block_id
-                            }
-                        }
-                    }
-                    TerminatorKind::Assert { ref mut target, .. } => {
-                        if *target == target_id {
-                            *target = new_block_id
-                        }
-                    }
-                    TerminatorKind::DropAndReplace { ref mut target, .. } => {
-                        if *target == target_id {
-                            *target = new_block_id
-                        }
-                    }
-                    TerminatorKind::Drop { ref mut target, .. } => {
-                        if *target == target_id {
-                            *target = new_block_id
-                        }
-                    }
-                    TerminatorKind::FalseUnwind { ref mut real_target, .. } => {
-                        if *real_target == target_id {
-                            *real_target = new_block_id
+                            *real_target = new_block_id;
+                        } else {
+                            info!("fedge invalid case, wanted {:?} found {:?}", target_id, real_target);
                         }
                     }
                     TerminatorKind::Resume
@@ -170,9 +120,17 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
                     | TerminatorKind::Return
                     | TerminatorKind::Unreachable
                     | TerminatorKind::GeneratorDrop
+                    | TerminatorKind::Assert { .. }
+                    | TerminatorKind::DropAndReplace { .. }
+                    | TerminatorKind::FalseUnwind { .. }
+                    | TerminatorKind::Drop { .. }
+                    | TerminatorKind::Call { .. }
                     | TerminatorKind::InlineAsm { .. }
-                    | TerminatorKind::Yield { .. } => (),
-                };
+                    | TerminatorKind::Yield { .. } => info!("unreachable case, {:?}", terminator),
+                }
+                if original.kind == terminator.kind {
+                    info!("unchanged kind {:?}, wanted {:?}", original, target_id);
+                }
             }
         }
     }
@@ -180,7 +138,7 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
 
 /// This function describes a rough heuristic guessing
 /// whether a place is last set with a const within the block.
-/// Notably, it will be overly pessimist in cases that are already
+/// Notably, it will be overly pessimistic in cases that are already
 /// not handled by `separate_const_switch`.
 fn is_likely_const<'tcx>(mut tracked_place: Place<'tcx>, block: &BasicBlockData<'tcx>) -> bool {
     for statement in block.statements.iter().rev() {
