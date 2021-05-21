@@ -1,3 +1,7 @@
+//! A pass that copies switch-terminated blocks into
+//! another copy for each parent that set the value
+//! being switched over to a constant.
+
 use crate::transform::MirPass;
 use rustc_middle::mir::*;
 use rustc_middle::ty::TyCtxt;
@@ -12,7 +16,7 @@ impl<'tcx> MirPass<'tcx> for SeparateConstSwitch {
 }
 
 pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
-    let mut new_edges: SmallVec<[(BasicBlock, BasicBlock); 8]> = SmallVec::new();
+    let mut new_edges: SmallVec<[(BasicBlock, BasicBlock); 6]> = SmallVec::new();
     let predecessors = body.predecessors();
     'block_iter: for (block_id, block) in body.basic_blocks().iter_enumerated() {
         if let TerminatorKind::SwitchInt {
