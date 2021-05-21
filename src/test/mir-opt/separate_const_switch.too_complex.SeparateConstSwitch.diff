@@ -1,0 +1,130 @@
+- // MIR for `too_complex` before SeparateConstSwitch
++ // MIR for `too_complex` after SeparateConstSwitch
+  
+  fn too_complex(_1: Result<T, E>) -> Option<T> {
+      debug x => _1;                       // in scope 0 at $DIR/separate_const_switch.rs:6:22: 6:23
+      let mut _0: std::option::Option<T>;  // return place in scope 0 at $DIR/separate_const_switch.rs:6:42: 6:51
+      let mut _2: std::ops::ControlFlow<E, T>; // in scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+      let mut _3: isize;                   // in scope 0 at $DIR/separate_const_switch.rs:16:13: 16:18
+      let _4: T;                           // in scope 0 at $DIR/separate_const_switch.rs:16:16: 16:17
+      let mut _5: T;                       // in scope 0 at $DIR/separate_const_switch.rs:16:44: 16:45
+      let _6: E;                           // in scope 0 at $DIR/separate_const_switch.rs:17:17: 17:18
+      let mut _7: E;                       // in scope 0 at $DIR/separate_const_switch.rs:17:42: 17:43
+      let mut _8: isize;                   // in scope 0 at $DIR/separate_const_switch.rs:20:9: 20:33
+      let _9: T;                           // in scope 0 at $DIR/separate_const_switch.rs:20:31: 20:32
+      let mut _10: T;                      // in scope 0 at $DIR/separate_const_switch.rs:20:42: 20:43
+      let _11: E;                          // in scope 0 at $DIR/separate_const_switch.rs:21:28: 21:29
+      let mut _12: bool;                   // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _13: bool;                   // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _14: bool;                   // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _15: bool;                   // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _16: isize;                  // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _17: isize;                  // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _18: isize;                  // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _19: isize;                  // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _20: isize;                  // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      let mut _21: isize;                  // in scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+      scope 1 {
+          debug v => _4;                   // in scope 1 at $DIR/separate_const_switch.rs:16:16: 16:17
+      }
+      scope 2 {
+          debug r => _6;                   // in scope 2 at $DIR/separate_const_switch.rs:17:17: 17:18
+      }
+      scope 3 {
+          debug v => _9;                   // in scope 3 at $DIR/separate_const_switch.rs:20:31: 20:32
+      }
+      scope 4 {
+          debug r => _11;                  // in scope 4 at $DIR/separate_const_switch.rs:21:28: 21:29
+      }
+  
+      bb0: {
+          _13 = const false;               // scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+          _12 = const false;               // scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+          _15 = const false;               // scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+          _14 = const false;               // scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+          _14 = const true;                // scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+          _15 = const true;                // scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+          StorageLive(_2);                 // scope 0 at $DIR/separate_const_switch.rs:14:11: 19:6
+          _3 = discriminant(_1);           // scope 0 at $DIR/separate_const_switch.rs:16:13: 16:18
+          switchInt(move _3) -> [0_isize: bb2, otherwise: bb1]; // scope 0 at $DIR/separate_const_switch.rs:16:13: 16:18
+      }
+  
+      bb1: {
+          StorageLive(_6);                 // scope 0 at $DIR/separate_const_switch.rs:17:17: 17:18
+          _6 = move ((_1 as Err).0: E);    // scope 0 at $DIR/separate_const_switch.rs:17:17: 17:18
+          StorageLive(_7);                 // scope 2 at $DIR/separate_const_switch.rs:17:42: 17:43
+          _7 = move _6;                    // scope 2 at $DIR/separate_const_switch.rs:17:42: 17:43
+          _12 = const true;                // scope 2 at $DIR/separate_const_switch.rs:17:23: 17:44
+          _13 = const true;                // scope 2 at $DIR/separate_const_switch.rs:17:23: 17:44
+          ((_2 as Break).0: E) = move _7;  // scope 2 at $DIR/separate_const_switch.rs:17:23: 17:44
+          discriminant(_2) = 1;            // scope 2 at $DIR/separate_const_switch.rs:17:23: 17:44
+          StorageDead(_7);                 // scope 2 at $DIR/separate_const_switch.rs:17:43: 17:44
+          StorageDead(_6);                 // scope 0 at $DIR/separate_const_switch.rs:17:43: 17:44
+-         goto -> bb3;                     // scope 0 at $DIR/separate_const_switch.rs:15:9: 18:10
++         goto -> bb9;                     // scope 0 at $DIR/separate_const_switch.rs:15:9: 18:10
+      }
+  
+      bb2: {
+          StorageLive(_4);                 // scope 0 at $DIR/separate_const_switch.rs:16:16: 16:17
+          _4 = move ((_1 as Ok).0: T);     // scope 0 at $DIR/separate_const_switch.rs:16:16: 16:17
+          StorageLive(_5);                 // scope 1 at $DIR/separate_const_switch.rs:16:44: 16:45
+          _5 = move _4;                    // scope 1 at $DIR/separate_const_switch.rs:16:44: 16:45
+          _12 = const true;                // scope 1 at $DIR/separate_const_switch.rs:16:22: 16:46
+          _13 = const true;                // scope 1 at $DIR/separate_const_switch.rs:16:22: 16:46
+          ((_2 as Continue).0: T) = move _5; // scope 1 at $DIR/separate_const_switch.rs:16:22: 16:46
+          discriminant(_2) = 0;            // scope 1 at $DIR/separate_const_switch.rs:16:22: 16:46
+          StorageDead(_5);                 // scope 1 at $DIR/separate_const_switch.rs:16:45: 16:46
+          StorageDead(_4);                 // scope 0 at $DIR/separate_const_switch.rs:16:45: 16:46
+          goto -> bb3;                     // scope 0 at $DIR/separate_const_switch.rs:15:9: 18:10
+      }
+  
+      bb3: {
+          _8 = discriminant(_2);           // scope 0 at $DIR/separate_const_switch.rs:20:9: 20:33
+          switchInt(move _8) -> [0_isize: bb5, otherwise: bb4]; // scope 0 at $DIR/separate_const_switch.rs:20:9: 20:33
+      }
+  
+      bb4: {
+          StorageLive(_11);                // scope 0 at $DIR/separate_const_switch.rs:21:28: 21:29
+          _11 = move ((_2 as Break).0: E); // scope 0 at $DIR/separate_const_switch.rs:21:28: 21:29
+          discriminant(_0) = 0;            // scope 4 at $DIR/separate_const_switch.rs:21:34: 21:38
+          drop(_11) -> [return: bb6, unwind: bb8]; // scope 0 at $DIR/separate_const_switch.rs:21:37: 21:38
+      }
+  
+      bb5: {
+          StorageLive(_9);                 // scope 0 at $DIR/separate_const_switch.rs:20:31: 20:32
+          _9 = move ((_2 as Continue).0: T); // scope 0 at $DIR/separate_const_switch.rs:20:31: 20:32
+          StorageLive(_10);                // scope 3 at $DIR/separate_const_switch.rs:20:42: 20:43
+          _10 = move _9;                   // scope 3 at $DIR/separate_const_switch.rs:20:42: 20:43
+          ((_0 as Some).0: T) = move _10;  // scope 3 at $DIR/separate_const_switch.rs:20:37: 20:44
+          discriminant(_0) = 1;            // scope 3 at $DIR/separate_const_switch.rs:20:37: 20:44
+          StorageDead(_10);                // scope 3 at $DIR/separate_const_switch.rs:20:43: 20:44
+          StorageDead(_9);                 // scope 0 at $DIR/separate_const_switch.rs:20:43: 20:44
+          goto -> bb7;                     // scope 0 at $DIR/separate_const_switch.rs:14:5: 22:6
+      }
+  
+      bb6: {
+          StorageDead(_11);                // scope 0 at $DIR/separate_const_switch.rs:21:37: 21:38
+          goto -> bb7;                     // scope 0 at $DIR/separate_const_switch.rs:14:5: 22:6
+      }
+  
+      bb7: {
+          _16 = discriminant(_2);          // scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+          _12 = const false;               // scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+          _13 = const false;               // scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+          StorageDead(_2);                 // scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+          _18 = discriminant(_1);          // scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+          return;                          // scope 0 at $DIR/separate_const_switch.rs:23:2: 23:2
+      }
+  
+      bb8 (cleanup): {
+          _20 = discriminant(_2);          // scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+          _21 = discriminant(_1);          // scope 0 at $DIR/separate_const_switch.rs:23:1: 23:2
+          resume;                          // scope 0 at $DIR/separate_const_switch.rs:6:1: 23:2
++     }
++ 
++     bb9: {
++         _8 = discriminant(_2);           // scope 0 at $DIR/separate_const_switch.rs:20:9: 20:33
++         switchInt(move _8) -> [0_isize: bb5, otherwise: bb4]; // scope 0 at $DIR/separate_const_switch.rs:20:9: 20:33
+      }
+  }
+  

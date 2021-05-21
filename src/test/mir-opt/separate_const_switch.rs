@@ -3,7 +3,6 @@
 use std::ops::ControlFlow;
 
 // EMIT_MIR separate_const_switch.too_complex.SeparateConstSwitch.diff
-// EMIT_MIR separate_const_switch.too_complex.ConstProp.diff
 fn too_complex<T, E>(x: Result<T, E>) -> Option<T> {
     // we want this construction to be reduced to
     // a single, direct match. to do so, we want
