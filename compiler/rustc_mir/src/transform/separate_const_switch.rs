@@ -10,7 +10,11 @@ use smallvec::SmallVec;
 pub struct SeparateConstSwitch;
 
 impl<'tcx> MirPass<'tcx> for SeparateConstSwitch {
-    fn run_pass(&self, _tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
+    fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
+        if tcx.sess.mir_opt_level() < 4 {
+            return;
+        }
+
         separate_const_switch(body);
     }
 }
