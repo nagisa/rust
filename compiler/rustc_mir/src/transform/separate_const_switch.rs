@@ -225,9 +225,7 @@ fn find_determining_place<'tcx>(
                     Rvalue::Use(Operand::Move(new) | Operand::Copy(new))
                     | Rvalue::UnaryOp(_, Operand::Copy(new) | Operand::Move(new))
                     | Rvalue::Cast(_, Operand::Move(new) | Operand::Copy(new), _)
-                    => {
-                        switch_place = new;
-                    }
+                    => switch_place = new,
 
                     Rvalue::Discriminant(new) => {
                         switch_place = new;
@@ -251,9 +249,7 @@ fn find_determining_place<'tcx>(
                     | Rvalue::NullaryOp(_, _)
                     | Rvalue::UnaryOp(_, Operand::Constant(_))
                     | Rvalue::Cast(_, Operand::Constant(_), _)
-                    => {
-                        return None;
-                    }
+                    => return None,
                 }
             }
 
