@@ -197,6 +197,9 @@ fn is_likely_const<'tcx>(mut tracked_place: Place<'tcx>, block: &BasicBlockData<
         }
     }
 
+    // If no good reason for the place to be const is found,
+    // give up. We could maybe go up predecessors, but in
+    // most cases giving up now should be sufficient.
     false
 }
 
@@ -237,6 +240,7 @@ fn find_determining_place<'tcx>(
                     | Rvalue::Ref(_, _, _)
                     | Rvalue::BinaryOp(_, _)
                     | Rvalue::CheckedBinaryOp(_, _)
+                    | Rvalue::Aggregate(_, _)
 
                     // The following rvalues definitely mean we cannot
                     // or should not apply this optimization
@@ -247,7 +251,6 @@ fn find_determining_place<'tcx>(
                     | Rvalue::NullaryOp(_, _)
                     | Rvalue::UnaryOp(_, Operand::Constant(_))
                     | Rvalue::Cast(_, Operand::Constant(_), _)
-                    | Rvalue::Aggregate(_, _)
                     => {
                         return None;
                     }
