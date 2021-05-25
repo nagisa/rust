@@ -501,7 +501,7 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         &multiple_return_terminators::MultipleReturnTerminators,
         &instcombine::InstCombine,
         &separate_const_switch::SeparateConstSwitch,
-        &simplify::SimplifyCfg::new("before-const-prop"),
+        &simplify::SimplifyCfg::new("test"),
         &const_prop::ConstProp,
         &simplify_branches::SimplifyBranches::new("after-const-prop"),
         &early_otherwise_branch::EarlyOtherwiseBranch,

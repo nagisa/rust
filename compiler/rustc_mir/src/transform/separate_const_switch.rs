@@ -7,6 +7,8 @@ use rustc_middle::mir::*;
 use rustc_middle::ty::TyCtxt;
 use smallvec::SmallVec;
 
+//use super::simplify;
+
 pub struct SeparateConstSwitch;
 
 impl<'tcx> MirPass<'tcx> for SeparateConstSwitch {
@@ -20,7 +22,7 @@ impl<'tcx> MirPass<'tcx> for SeparateConstSwitch {
 }
 
 pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
-    let mut new_edges: SmallVec<[(BasicBlock, BasicBlock); 6]> = SmallVec::new();
+    let mut new_blocks: SmallVec<[(BasicBlock, BasicBlock); 6]> = SmallVec::new();
     let predecessors = body.predecessors();
     'block_iter: for (block_id, block) in body.basic_blocks().iter_enumerated() {
         if let TerminatorKind::SwitchInt {
@@ -48,97 +50,106 @@ pub fn separate_const_switch<'tcx>(body: &mut Body<'tcx>) {
                 // we now have an input place for which it would
                 // be interesting if predecessors assigned it from a const
 
-                let mut predecessors_left = predecessors[block_id].len();
-                'predec_iter: for predecessor_id in predecessors[block_id].iter().copied() {
-                    if let Some(predecessor) = body.basic_blocks().get(predecessor_id) {
-                        // first we make sure the predecessor jumps
-                        // in a reasonable way
-                        match &predecessor.terminator().kind {
-                            // the following terminators are
-                            // unconditionally valid
-                            TerminatorKind::Goto { .. } | TerminatorKind::SwitchInt { .. } => {}
+                'predec_iter: for predecessor_id in predecessors[block_id].iter().skip(1).copied() {
+                    let predecessor =
+                        body.basic_blocks().get(predecessor_id).unwrap_or_else(|| {
+                            span_bug!(
+                                body.span,
+                                "basic block has unregistered predecessor {:?}",
+                                predecessor_id
+                            )
+                        });
 
-                            TerminatorKind::FalseEdge { real_target, .. } => {
-                                if *real_target != block_id {
-                                    continue 'predec_iter;
-                                }
-                            }
+                    // first we make sure the predecessor jumps
+                    // in a reasonable way
+                    match &predecessor.terminator().kind {
+                        // the following terminators are
+                        // unconditionally valid
+                        TerminatorKind::Goto { .. } | TerminatorKind::SwitchInt { .. } => {}
 
-                            // the following terminators are not allowed
-                            TerminatorKind::Resume
-                            | TerminatorKind::Drop { .. }
-                            | TerminatorKind::DropAndReplace { .. }
-                            | TerminatorKind::Call { .. }
-                            | TerminatorKind::Assert { .. }
-                            | TerminatorKind::FalseUnwind { .. }
-                            | TerminatorKind::Yield { .. }
-                            | TerminatorKind::Abort
-                            | TerminatorKind::Return
-                            | TerminatorKind::Unreachable
-                            | TerminatorKind::InlineAsm { .. }
-                            | TerminatorKind::GeneratorDrop => {
+                        TerminatorKind::FalseEdge { real_target, .. } => {
+                            if *real_target != block_id {
                                 continue 'predec_iter;
                             }
                         }
 
-                        if is_likely_const(switch_place, predecessor) {
-                            new_edges.push((predecessor_id, block_id));
-                            predecessors_left -= 1;
-                            if predecessors_left < 2 {
-                                // there is no point in duplicating anymore
-                                break 'predec_iter;
-                            }
+                        // the following terminators are not allowed
+                        TerminatorKind::Resume
+                        | TerminatorKind::Drop { .. }
+                        | TerminatorKind::DropAndReplace { .. }
+                        | TerminatorKind::Call { .. }
+                        | TerminatorKind::Assert { .. }
+                        | TerminatorKind::FalseUnwind { .. }
+                        | TerminatorKind::Yield { .. }
+                        | TerminatorKind::Abort
+                        | TerminatorKind::Return
+                        | TerminatorKind::Unreachable
+                        | TerminatorKind::InlineAsm { .. }
+                        | TerminatorKind::GeneratorDrop => {
+                            continue 'predec_iter;
                         }
+                    }
+
+                    if is_likely_const(switch_place, predecessor) {
+                        new_blocks.push((predecessor_id, block_id));
                     }
                 }
             }
         }
     }
 
+    let body_span = body.span;
     let blocks = body.basic_blocks_mut();
-    for (pred_id, target_id) in new_edges {
-        if let Some(new_block) = blocks.get(target_id).cloned() {
-            let new_block_id = blocks.push(new_block);
-            if let Some(terminator) = blocks.get_mut(pred_id).map(|x| x.terminator_mut()) {
-                match terminator.kind {
-                    TerminatorKind::Goto { ref mut target } => {
-                        *target = new_block_id;
-                    }
+    for (pred_id, target_id) in new_blocks {
+        let new_block = blocks.get(target_id).cloned().unwrap_or_else(|| {
+            span_bug!(body_span, "attempted to separate nonexistent block {:?}", target_id)
+        });
+        let new_block_id = blocks.push(new_block);
+        let terminator = blocks
+            .get_mut(pred_id)
+            .unwrap_or_else(|| {
+                span_bug!(
+                    body_span,
+                    "attempted to redirect nonexistent predecessor {:?} of {:?}",
+                    pred_id,
+                    target_id
+                )
+            })
+            .terminator_mut();
 
-                    TerminatorKind::FalseEdge { ref mut real_target, .. } => {
-                        if *real_target == target_id {
-                            *real_target = new_block_id;
-                        }
-                    }
+        match terminator.kind {
+            TerminatorKind::Goto { ref mut target } => {
+                *target = new_block_id;
+            }
 
-                    TerminatorKind::SwitchInt { ref mut targets, .. } => {
-                        targets.all_targets_mut().iter_mut().for_each(|x| {
-                            if *x == target_id {
-                                *x = new_block_id;
-                            }
-                        });
-                    }
-
-                    TerminatorKind::Resume
-                    | TerminatorKind::Abort
-                    | TerminatorKind::Return
-                    | TerminatorKind::Unreachable
-                    | TerminatorKind::GeneratorDrop
-                    | TerminatorKind::Assert { .. }
-                    | TerminatorKind::DropAndReplace { .. }
-                    | TerminatorKind::FalseUnwind { .. }
-                    | TerminatorKind::Drop { .. }
-                    | TerminatorKind::Call { .. }
-                    | TerminatorKind::InlineAsm { .. }
-                    | TerminatorKind::Yield { .. } => {
-                        let kind = terminator.kind.clone();
-                        span_bug!(
-                            body.span,
-                            "basic block terminator had unexpected kind {:?}",
-                            kind
-                        )
-                    }
+            TerminatorKind::FalseEdge { ref mut real_target, .. } => {
+                if *real_target == target_id {
+                    *real_target = new_block_id;
                 }
+            }
+
+            TerminatorKind::SwitchInt { ref mut targets, .. } => {
+                targets.all_targets_mut().iter_mut().for_each(|x| {
+                    if *x == target_id {
+                        *x = new_block_id;
+                    }
+                });
+            }
+
+            TerminatorKind::Resume
+            | TerminatorKind::Abort
+            | TerminatorKind::Return
+            | TerminatorKind::Unreachable
+            | TerminatorKind::GeneratorDrop
+            | TerminatorKind::Assert { .. }
+            | TerminatorKind::DropAndReplace { .. }
+            | TerminatorKind::FalseUnwind { .. }
+            | TerminatorKind::Drop { .. }
+            | TerminatorKind::Call { .. }
+            | TerminatorKind::InlineAsm { .. }
+            | TerminatorKind::Yield { .. } => {
+                let kind = terminator.kind.clone();
+                span_bug!(body_span, "basic block terminator had unexpected kind {:?}", kind)
             }
         }
     }
