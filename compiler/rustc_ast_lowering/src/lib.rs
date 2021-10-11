@@ -2183,7 +2183,11 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         })
     }
 
-    fn pat_without_dbm(&mut self, span: Span, kind: hir::PatKind<'hir>) -> hir::Pat<'hir> {
+    pub(crate) fn pat_without_dbm(
+        &mut self,
+        span: Span,
+        kind: hir::PatKind<'hir>,
+    ) -> hir::Pat<'hir> {
         hir::Pat {
             hir_id: self.next_id(),
             kind,

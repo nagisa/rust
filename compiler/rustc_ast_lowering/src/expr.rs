@@ -1612,7 +1612,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
         self.expr(span, hir::ExprKind::DropTemps(expr), attrs)
     }
 
-    fn expr_match(
+    pub(crate) fn expr_match(
         &mut self,
         span: Span,
         arg: &'hir hir::Expr<'hir>,
@@ -1791,7 +1791,11 @@ impl<'hir> LoweringContext<'_, 'hir> {
         }
     }
 
-    fn arm(&mut self, pat: &'hir hir::Pat<'hir>, expr: &'hir hir::Expr<'hir>) -> hir::Arm<'hir> {
+    pub(crate) fn arm(
+        &mut self,
+        pat: &'hir hir::Pat<'hir>,
+        expr: &'hir hir::Expr<'hir>,
+    ) -> hir::Arm<'hir> {
         hir::Arm {
             hir_id: self.next_id(),
             pat,

@@ -1810,6 +1810,8 @@ pub enum MatchSource {
     TryDesugar,
     /// A desugared `<expr>.await`.
     AwaitDesugar,
+    /// A desuraged `let pat = expr else { ... }` statement.
+    LetElseDesugar,
 }
 
 impl MatchSource {
@@ -1821,6 +1823,7 @@ impl MatchSource {
             ForLoopDesugar => "for",
             TryDesugar => "?",
             AwaitDesugar => ".await",
+            LetElseDesugar => "let-else",
         }
     }
 }
