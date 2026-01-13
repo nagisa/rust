@@ -230,6 +230,7 @@ pub enum FnAbi {
     Win64,
     Win64Unwind,
     X86Interrupt,
+    PreserveNone,
     Unknown,
 }
 
@@ -288,6 +289,7 @@ impl FnAbi {
             s if *s == sym::win64_dash_unwind => FnAbi::Win64Unwind,
             s if *s == sym::win64 => FnAbi::Win64,
             s if *s == sym::x86_dash_interrupt => FnAbi::X86Interrupt,
+            s if *s == sym::preserve_dash_none => FnAbi::PreserveNone,
             _ => FnAbi::Unknown,
         }
     }

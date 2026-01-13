@@ -35,3 +35,4 @@ vectorcall-unwind
 win64
 win64-unwind
 x86-interrupt
+rust-preserve-none
