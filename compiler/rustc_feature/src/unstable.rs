@@ -635,7 +635,7 @@ declare_features! (
     /// Allows `extern "rust-preserve-none"`.
     ///
     /// TODO(nagisa): assign tracking issue once filled.
-    (unstable, rust_preserve_none_cc, "CURRENT_RUSTC_VERSION", None),
+    (unstable, rust_preserve_none_cc, "CURRENT_RUSTC_VERSION", Some(151401)),
     /// Target features on s390x.
     (unstable, s390x_target_feature, "1.82.0", Some(150259)),
     /// Allows the use of the `sanitize` attribute.
