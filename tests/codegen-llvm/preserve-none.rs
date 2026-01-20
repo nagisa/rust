@@ -10,9 +10,9 @@ pub extern "rust-preserve-none" fn peach(x: u16) {
     panic!("unwinding works too")
 }
 
+// CHECK: call preserve_nonecc void @peach(i16
 pub fn quince(x: u16) {
     if x == 12345 {
-// CHECK: call preserve_nonecc void @peach(i16
         peach(54321);
     }
 }
