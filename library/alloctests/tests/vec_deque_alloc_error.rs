@@ -1,3 +1,5 @@
+// `set_alloc_error_hook` is not available on solana, nor is the feature gating it.
+#![cfg(not(target_family = "solana"))]
 #![feature(alloc_error_hook, allocator_api)]
 
 use std::alloc::{AllocError, Allocator, Layout, System, set_alloc_error_hook};
